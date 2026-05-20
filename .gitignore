@@ -1,0 +1,23 @@
+# OS / Editor
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# VSCode workspace settings (persönlich, nicht teilen)
+.vscode/
+
+# Build-/Cache-Output
+*.cache
+*.tmp
+
+# Logs (falls wir mal welche im Mod-Ordner haben)
+*.log
+
+# Backup-Dateien aus PowerShell-Experimenten
+console_alt*.txt
+
+# Lokale Notes (falls du mal Scribble-Dateien dazulegst)
+NOTES_local.md
+TODO_local.md
