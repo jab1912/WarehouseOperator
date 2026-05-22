@@ -1,18 +1,19 @@
--- Warehouse Operator - Debug Context Menu for Quest Acceptance & Extraction
--- Phase 2.3 + 4a: Rechtsklick am PC → state-abhängiges Menü
--- Wird in Phase 3 durch das richtige Terminal-UI ersetzt.
+-- Warehouse Operator - Debug Context Menu for Quest Acceptance & Extraction & Terminal
+-- Phase 2.3 + 4a + 3a: Rechtsklick am PC → state-abhängiges Menü + Terminal-Open
 
 local WHO_Config           = require "WarehouseOperator/WHO_Config"
 local WHO_Quests           = require "WarehouseOperator/WHO_Quests"
 local WHO_QuestState       = require "WarehouseOperator/WHO_QuestState"
 local WHO_RewardDispatcher = require "WHO_RewardDispatcher"
+-- WHO_TerminalUI wird automatisch von PZ geladen (in client/ Ordner)
 
 -- Radius in Tiles um TERMINAL_POS, in dem das Menü angezeigt wird.
 local INTERACTION_RADIUS = 2
 
 -- =========================================================================
--- HELPER: Check ob der geklickte Square nahe genug am Terminal ist
+-- HELPER
 -- =========================================================================
+
 local function isNearTerminal(worldObjects)
     if not worldObjects or #worldObjects == 0 then
         return false
@@ -42,6 +43,14 @@ end
 -- MENU ACTIONS
 -- =========================================================================
 
+local function onBootTerminalClicked(worldObjects, player)
+    if WHO_TerminalUI and WHO_TerminalUI.openTerminal then
+        WHO_TerminalUI.openTerminal(player)
+    else
+        print("[WHO] ERROR: WHO_TerminalUI not loaded properly!")
+    end
+end
+
 local function onAcceptMissionClicked(worldObjects, player)
     local availableQuests = WHO_Quests.getByTier(1)
     if #availableQuests == 0 then
@@ -67,10 +76,16 @@ local function onFillContextMenu(playerIndex, context, worldObjects, test)
 
     if not isNearTerminal(worldObjects) then return end
 
+    context:addOption(
+        "Boot Terminal",
+        worldObjects,
+        onBootTerminalClicked,
+        player
+    )
+
     local status = WHO_QuestState.getCurrentStatus(player)
 
     if status == WHO_QuestState.STATUS.IDLE then
-        -- Keine Quest aktiv → neue annehmen
         context:addOption(
             "Accept Mission [DEBUG]",
             worldObjects,
@@ -78,13 +93,11 @@ local function onFillContextMenu(playerIndex, context, worldObjects, test)
             player
         )
     elseif status == WHO_QuestState.STATUS.ACTIVE then
-        -- Quest läuft → Info zeigen, nicht klickbar
         local quest = WHO_QuestState.getCurrentQuest(player)
         local label = "Active Mission: " .. (quest and quest.name or "?") .. " [DEBUG]"
         local option = context:addOption(label, worldObjects, nil)
         option.notAvailable = true
     elseif status == WHO_QuestState.STATUS.COMPLETE then
-        -- Quest fertig, bereit zur Abholung → klickbar
         context:addOption(
             "Confirm Extraction [DEBUG]",
             worldObjects,

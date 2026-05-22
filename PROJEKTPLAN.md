@@ -10,6 +10,26 @@ Extraction-Shooter-Mechanik für Project Zomboid. Der Spieler ist ein "Operator"
 
 **Death & Respawn:** Vanilla-Mechanik bleibt erhalten – stirbt der Operator, wandert seine Leiche samt mitgeführter Ausrüstung als Zombie weiter. Ein neuer Operator wird per Insertion-Cutscene eingeflogen/abgesetzt und übernimmt im Warehouse. Was im Stash war, bleibt erhalten. Was draußen war, ist verloren (oder kann von der eigenen Leiche zurückgeholt werden → "Scav Run").
 
+## Lore
+
+**WHO - Warehouse Hazmat Outfitters**
+
+Fiktive Logistik-/Tarnfirma die offiziell auf "hazardous materials handling" 
+spezialisiert ist, tatsächlich aber ein Netzwerk von Operatoren steuert die 
+in gefährliche Gebiete entsandt werden um wertvolle Materialien zu bergen.
+
+**Tone:** 90s Action-Movie. Bruce-Willis-Vibe. Self-aware aber 
+committed - wir nehmen unsere eigenen Klischees ernst. Cheesy ja, aber 
+konsistent cheesy. Vergleichbar mit Die Hard, Total Recall, Demolition Man.
+
+**In-Game-Verwendung:**
+- Logo erscheint im Terminal-Boot (Phase 3a)
+- Quest-Briefings als Absender: "WHO Logistics Division"
+- Audio: "Operator [N], this is WHO Command..." bei Funksprüchen (Phase 6)
+- Workshop-Branding: "WHO - Warehouse Operator" als Mod-Name
+- Konsistente fake-Corporate-Sprache: "containment", "asset recovery", 
+  "extraction protocol", "operator deployment"
+
 ---
 
 ## Tech Stack
@@ -283,6 +303,22 @@ viel Code anpassen. Hier ist's billig, weil nur Phase-2-State zu persistieren is
   PZ stirbt im OpenGL-Init, lange vor Lua-Loading).
   Konsequenz: nicht modspezifisch, kein Bugfix nötig. Vor Workshop-Release
   in Phase 8 auf PZ Stable verifizieren.
+
+
+## Asset-Strategie
+
+- **Image-Generation:** OpenArt.ai (User-Subscription, wird zur Asset-Phase reaktiviert)
+  Vorteile: mehrere Modelle parallel, Img2Img, Style-Konsistenz, Style-References.
+- **Kein Selbst-Pixel-Push** (Entscheidung 22.05.26 / Tag 2).
+- **Pixel-Konvertierung** falls nötig: kostenlose Web-Konverter
+  (lospec.com etc.) — keine zusätzliche Subscription.
+
+**Asset-Bedarf je Phase:**
+- Phase 3a (Static Terminal UI): vermutlich keiner (alles Code-rendered)
+- Phase 3c (Terminal Polish): CRT-Scanline-Overlay, Boot-Logo, evtl. Sound-Wave-Sprite
+- Phase 4b (Truck-Atmosphäre): ggf. Truck-Sprite-Sequence (oder nur Sound)
+- Phase 7 (Release-Polish): Mod-Icon (128x128 mod-Root poster.png),
+                          Workshop-Header (1024x512), Custom-Item-Icons (falls nötig)
 
 ---
 
