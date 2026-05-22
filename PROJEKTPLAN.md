@@ -277,6 +277,13 @@ viel Code anpassen. Hier ist's billig, weil nur Phase-2-State zu persistieren is
   (3x3 oder 5x5 Raster um das Ziel-Tile checken). Macht Quest-Design robuster
   bei Off-by-one-Tile-Fehlern.
 
+- **Sporadische Startup-Crashes bei PZ 42.18 Unstable**
+  Symptom: schwarzer Bildschirm beim Start, dann CTD. Beim 2. Versuch läuft's.
+  Ursache: AMD-OpenGL/Display-Init-Race-Condition (verifiziert via DebugLog —
+  PZ stirbt im OpenGL-Init, lange vor Lua-Loading).
+  Konsequenz: nicht modspezifisch, kein Bugfix nötig. Vor Workshop-Release
+  in Phase 8 auf PZ Stable verifizieren.
+
 ---
 
 ## Aufwandsschätzung (aktualisiert)
