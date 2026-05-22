@@ -37,3 +37,17 @@ Events.OnGameStart.Add(function()
     -- '..' verkettet Strings. Zahlen werden automatisch zu Strings konvertiert.
     print("[WHO] Player position: x=" .. x .. ", y=" .. y .. ", z=" .. z)
 end)
+
+-- ===================================================================
+-- Phase 2.1 Test: Quest-Definitionen laden und ausgeben
+-- ===================================================================
+local WHO_Quests = require "WarehouseOperator/WHO_Quests"
+print("[WHO] Quest module loaded. Total quests: " .. #WHO_Quests.list)
+
+local firstQuest = WHO_Quests.getById("WHO_Q001")
+if firstQuest then
+    print("[WHO] First quest: " .. firstQuest.name)
+    print("[WHO]   Tier: " .. firstQuest.tier)
+    print("[WHO]   Required: " .. firstQuest.requirements[1].count .. "x " .. firstQuest.requirements[1].itemType)
+end
+

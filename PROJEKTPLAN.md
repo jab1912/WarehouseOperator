@@ -259,6 +259,24 @@ viel Code anpassen. Hier ist's billig, weil nur Phase-2-State zu persistieren is
 - Terminal-UI-Performance: ISPanel-Animationen können bei zu vielen Effekten ruckeln
 - ModData-Migration zwischen Mod-Versionen: muss von Anfang an mitgedacht werden (Phase 2.5)
 
+
+## Dev-Lessons Learned
+
+- **Container-Koordinaten in-game verifizieren, nicht von Map ablesen.**
+  Map-Site (map.projectzomboid.com) ist um 1-2 Tiles ungenau bei Container-Objekten.
+  Workflow: ingame zur Stelle gehen → Rechtsklick → "Tile Report"-Tooltip
+  zeigt die exakte Position (x/y/z). Diese ist verbindlich für den Code.
+  Map ist trotzdem nützlich für Areale, Räume, Übersicht.
+
+- **Spawner ist robust gegen falsche Tile-Koordinaten** durch Boden-Fallback:
+  Wenn keine Container am Ziel-Tile, landen Items auf dem Boden statt zu
+  verschwinden. Trotzdem: bei verschlossenen Häusern problematisch
+  (siehe Phase 7 - "Verschlossene Häuser als Quest-Element").
+
+- **TODO Phase 5+:** Spawner um "scan nearby tiles for container" erweitern
+  (3x3 oder 5x5 Raster um das Ziel-Tile checken). Macht Quest-Design robuster
+  bei Off-by-one-Tile-Fehlern.
+
 ---
 
 ## Aufwandsschätzung (aktualisiert)

@@ -1,15 +1,18 @@
--- Warehouse Operator - Test-Teleport + Position-Logger
--- Phase 1.2: per Tastendruck zu fester Koordinate springen, plus Position ablesen
--- Wird in Phase 1.4 wieder entfernt, ist nur fürs Entwickeln da
+-- Warehouse Operator - Debug Hotkeys
+-- Test-Tools fürs Entwickeln: Teleport, Position, Quest-State
 
--- Ziel-Koordinaten (Warehouse-Eingang in Louisville)
-local TARGET_X = 12606
-local TARGET_Y = 4711
-local TARGET_Z = 0
+local WHO_Config     = require "WarehouseOperator/WHO_Config"
+local WHO_QuestState = require "WarehouseOperator/WHO_QuestState"
 
--- Tasten-Codes (LWJGL-Konstanten)
-local TELEPORT_KEY = 67  -- F9
-local LOG_POS_KEY  = 68  -- F10
+if not WHO_Config.DEBUG.ENABLED then
+    return
+end
+
+-- Tasten-Codes (LWJGL)
+local KEY_TELEPORT      = 67  -- F9
+local KEY_LOG_POSITION  = 68  -- F10
+local KEY_ACCEPT_QUEST  = 73  -- Numpad 9
+local KEY_LOG_STATE     = 82  -- Numpad 0
 
 local function logPosition(prefix)
     local player = getPlayer()
@@ -20,36 +23,60 @@ local function logPosition(prefix)
     print("[WHO] " .. prefix .. ": x=" .. x .. ", y=" .. y .. ", z=" .. z)
 end
 
-local function teleportToTarget()
+local function teleportToSpawn()
     local player = getPlayer()
     if not player then return end
 
     logPosition("Teleport from")
 
-    -- Saubere B42-API: setPosition(x, y, z) auf IsoMovingObject
-    -- Das ist die offizielle Methode und kümmert sich intern um alle
-    -- nötigen Side-Effects (Last-Position, Square-Update, etc.)
-    player:setPosition(TARGET_X, TARGET_Y, TARGET_Z)
+    local pos = WHO_Config.WAREHOUSE.SPAWN_POS
+    player:setPosition(pos.x, pos.y, pos.z)
+    player:setLastX(pos.x)
+    player:setLastY(pos.y)
+    player:setLastZ(pos.z)
 
-    -- "Last"-Position auch updaten, damit das Movement-System nicht
-    -- denkt wir wären gerade auf einem riesigen Weg unterwegs (Pathing)
-    player:setLastX(TARGET_X)
-    player:setLastY(TARGET_Y)
-    player:setLastZ(TARGET_Z)
+    print("[WHO] Teleported to SPAWN_POS: x=" .. pos.x .. ", y=" .. pos.y)
+end
 
-    print("[WHO] Teleported to: x=" .. TARGET_X .. ", y=" .. TARGET_Y)
+local function acceptTestQuest()
+    local player = getPlayer()
+    if not player then return end
+    WHO_QuestState.acceptQuest(player, "WHO_Q001")
+end
+
+local function logQuestState()
+    local player = getPlayer()
+    if not player then return end
+
+    local status = WHO_QuestState.getCurrentStatus(player)
+    local quest  = WHO_QuestState.getCurrentQuest(player)
+
+    print("[WHO] === Quest State ===")
+    print("[WHO]   Status: " .. status)
+    if quest then
+        print("[WHO]   Active Quest: " .. quest.name .. " (" .. quest.id .. ")")
+        print("[WHO]   Requirement: " .. quest.requirements[1].count .. "x " .. quest.requirements[1].itemType)
+    else
+        print("[WHO]   No active quest")
+    end
 end
 
 local function onKeyPressed(key)
-    if key == TELEPORT_KEY then
-        teleportToTarget()
-    elseif key == LOG_POS_KEY then
+    if key == KEY_TELEPORT then
+        teleportToSpawn()
+    elseif key == KEY_LOG_POSITION then
         logPosition("Current position")
+    elseif key == KEY_ACCEPT_QUEST then
+        acceptTestQuest()
+    elseif key == KEY_LOG_STATE then
+        logQuestState()
     end
 end
 
 Events.OnKeyPressed.Add(onKeyPressed)
 
-print("[WHO] Teleport module loaded.")
-print("[WHO]   F9  = teleport to target (" .. TARGET_X .. "/" .. TARGET_Y .. ")")
-print("[WHO]   F10 = log current position")
+print("[WHO] Debug hotkeys loaded:")
+print("[WHO]   F9         = teleport to SPAWN_POS")
+print("[WHO]   F10        = log current position")
+print("[WHO]   Numpad 9   = accept test quest WHO_Q001")
+print("[WHO]   Numpad 0   = log quest state")
