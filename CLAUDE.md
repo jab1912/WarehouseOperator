@@ -1,0 +1,105 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## What this is
+
+A **Project Zomboid Build 42** single-player mod ("Warehouse Operator"): an
+extraction-shooter loop where the player takes loot missions from a 90s-style
+DOS terminal in a Louisville warehouse. Pure Lua against the PZ modding API.
+No multiplayer — everything is client-side.
+
+`PROJEKTPLAN.md` is the source of truth for scope, phase roadmap, confirmed
+decisions, and dev lessons learned. Read it before non-trivial work. Code
+comments and planning docs are in **German**; all in-game/player-facing text
+is in **English**.
+
+## Build / run / test
+
+There is **no build step and no test framework**. The repo *is* the mod, living
+directly in `%USERPROFILE%\Zomboid\mods\WarehouseOperator`.
+
+- **Run/test:** restart Project Zomboid — Lua changes load on startup. Verify by
+  watching the console/`console.txt` for `[WHO] ...` log lines (every module
+  prints a load marker and logs state changes).
+- **In-game debug hotkeys** (only active when `WHO_Config.DEBUG.ENABLED`):
+  - `F9` teleport to SPAWN_POS · `F10` log current position
+  - `Numpad 9` accept test quest WHO_Q001 · `Numpad 0` log quest state
+- **Static analysis:** VSCode + EmmyLua extension. `.emmyrc.json` points the
+  analyzer at Umbrella type stubs (`C:/Users/manta/dev/Umbrella/library`),
+  Lua 5.1, workspace root `42/media/lua`. There is no CLI lint command.
+
+## Layout & module loading (the non-obvious part)
+
+**Dual `mod.info`** — `mod.info` at root is the B41 marker; `common/mod.info` is
+the B42 marker. All actual code lives under `42/media/` (the Build-42 path).
+
+PZ auto-loads files differently depending on folder:
+
+- `42/media/lua/client/*.lua` — **executed automatically in alphabetical order.**
+  This ordering is load-bearing: `WHO_AAA_TerminalUI.lua` carries the `AAA`
+  prefix so the global `WHO_TerminalUI` class exists before
+  `WHO_TerminalDebugMenu.lua` references it. Keep that in mind when adding
+  client files that depend on each other.
+- `42/media/lua/shared/WarehouseOperator/*.lua` — loaded on demand via `require`.
+
+**`require` path conventions** (mixing these up causes load failures):
+- shared modules: `require "WarehouseOperator/WHO_Config"`
+- client modules: `require "WHO_RewardDispatcher"` (bare name, no folder)
+
+All Lua globals, files, and quest IDs are prefixed `WHO_`. Quest IDs are
+`WHO_Q` + 3-digit number. Item types use PZ's `Base.X` form.
+
+## Architecture & data flow
+
+The whole mod is one quest state machine driven by a few cooperating modules.
+
+**Shared (data + logic):**
+- `WHO_Config` — central constants: warehouse coords (SPAWN/TERMINAL/EXTRACTION),
+  per-quest item-spawn positions, DEBUG flags + keycodes, mod version. Change
+  coordinates here, nowhere else.
+- `WHO_Quests` — static quest definitions only (id, tier, briefing lines,
+  requirements, rewards) + `getById/getByTier/getAvailable`. No behavior.
+- `WHO_QuestState` — per-player state machine persisted in
+  `player:getModData().WHO`. Status flow: `IDLE → ACTIVE → COMPLETE → IDLE`.
+  `acceptQuest` also spawns the quest's required items into the world via
+  `WHO_ItemSpawner` at the configured spawn position. Survives save/load.
+- `WHO_ItemSpawner` — generic `spawnAt/spawnBatchAt`: finds a container on the
+  target square, else drops items on the floor (robust against off-by-one tile
+  coords — see PROJEKTPLAN "Dev-Lessons Learned").
+
+**Client (events + UI):**
+- `WHO_Spawn` — hooks **`OnNewGame`** (deliberately *not* `OnGameStart`, so
+  existing saves are untouched): teleports new operator to SPAWN_POS and grants
+  the starter kit, equipping pistol (primary) + crowbar (secondary).
+- `WHO_QuestCheck` — `EveryOneMinute` loop: when a quest is ACTIVE, counts items
+  in the extraction crate against requirements and flips state to COMPLETE.
+- `WHO_RewardDispatcher` — on extraction confirm, removes the required items from
+  the crate, adds the reward items, then calls `finishQuest` (back to IDLE).
+- `WHO_TerminalDebugMenu` — `OnFillWorldObjectContextMenu`: right-click within
+  `INTERACTION_RADIUS` tiles of TERMINAL_POS shows "Boot Terminal" plus
+  state-dependent debug options.
+- `WHO_AAA_TerminalUI` — `ISPanel` subclass, the DOS-green terminal. Internal
+  states `BOOTING → READY → MISSIONS_VIEW`; renders mission list / detail pane /
+  active / complete views and drives accept + confirm-extraction through the
+  same `WHO_QuestState` / `WHO_RewardDispatcher` backend as the debug menu.
+- `WHO_HelloWorld` — load marker + `OnGameStart` position logger.
+
+**End-to-end loop:** accept quest (terminal or debug menu) → required items spawn
+in the world → player carries them to the extraction crate → `EveryOneMinute`
+check marks COMPLETE → confirm extraction → dispatcher swaps required items for
+rewards → state returns to IDLE.
+
+## Working with the PZ Java API (gotchas)
+
+- Java collections returned by the API (`square:getObjects()`,
+  `container:getItems()`) are **0-indexed**: iterate `for i = 0, list:size()-1`.
+- When **removing** items from a container while iterating, loop **backwards**
+  (`for i = size-1, 0, -1`) so indices don't shift out from under you — see
+  `WHO_RewardDispatcher.removeItemsOfType`.
+- The terminal UI does manual hit-testing in `onMouseDown/onMouseMove` against
+  rect helpers (`getMenuItemRect`, `getQuestListItemRect`, etc.) rather than
+  child buttons. Known layout-overlap glitches are catalogued under
+  "Phase 3b: Known UI Issues" in PROJEKTPLAN.md.
+- Container/world coordinates must be verified **in-game** (right-click →
+  Tile Report), not read off map.projectzomboid.com (off by 1-2 tiles).

@@ -1,9 +1,11 @@
 -- Warehouse Operator - Hello World + Player Position Logger
 -- Phase 1.1: lernt getPlayer() und Koordinaten
 
+local WHO_Config = require "WarehouseOperator/WHO_Config"
+
 print("======================================")
 print("[WHO] Warehouse Operator loaded successfully!")
-print("[WHO] Mod version: 0.0.2")
+print("[WHO] Mod version: " .. WHO_Config.MOD.VERSION)
 print("[WHO] Build target: 42.18.0")
 print("======================================")
 
