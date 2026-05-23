@@ -162,16 +162,16 @@ viel Code anpassen. Hier ist's billig, weil nur Phase-2-State zu persistieren is
 Funktional ist Phase 3b komplett — Mission-Loop läuft via Terminal. 
 Folgende visuellen Glitches bleiben für späteren Polish:
 
-- [ ] BACK-Button überlappt mit "AVAILABLE MISSIONS:"-Label im IDLE-View
+- [x] BACK-Button überlappt mit "AVAILABLE MISSIONS:"-Label im IDLE-View
   - Ursache: BACK-Box-Position und Label-Position kollidieren bei breiteren Boxes
   - Fix: Label um ~80px nach rechts schieben oder BACK kleiner machen
 
-- [ ] ACCEPT MISSION-Button überlappt mit CLOSE-Button
+- [x] ACCEPT MISSION-Button überlappt mit CLOSE-Button
   - Ursache: getActionButtonRect Y-Position (height - 140) zu nah am CLOSE
   - Fix: Action-Button höher (height - 170) oder CLOSE entfernen wenn 
     ein anderer Button schon da ist
 
-- [ ] In QuestDetailPane: Briefing/Objectives/Reward überlappen 
+- [x] In QuestDetailPane: Briefing/Objectives/Reward überlappen 
   bei längeren Briefing-Texten (5+ Zeilen)
   - Ursache: Y-Position akkumuliert kumulativ ohne Bounds-Check
   - Fix: max-height für Briefing definieren, scrollbar bei Overflow, 
@@ -179,12 +179,14 @@ Folgende visuellen Glitches bleiben für späteren Polish:
   - Ggf. ist die ganze QuestDetailPane das falsche Pattern und sollte 
     durch separate Briefing-View ersetzt werden (siehe Phase 3b.5)
 
-- [ ] CLOSE-Button-Padding klebt etwas am unteren Rand
+- [x] CLOSE-Button-Padding klebt etwas am unteren Rand
   - Minor cosmetic, padBottom auf 60-70 setzen für mehr Luft
 
-**Lösungsstrategie:** Phase 3c oder eigene "Polish-Session" mit Claude Code, 
-wo wir die Layout-Konstanten systematisch durchgehen und auch direkt im 
-Spiel iterieren können.
+**Gelöst (Phase 3c):** Fenster ist jetzt 75% des Screens (geclamped, zentriert)
+mit Anchor-basiertem, proportionalem Layout statt absoluter Pixel-Koordinaten.
+BACK/ACCEPT/CONFIRM/CLOSE sind randlose Menü-Text-Buttons (Hover-">"-Pfeil) wie
+das Hauptmenü — die Boxen, an denen sich alle vier Glitches festmachten, gibt es
+nicht mehr. In-Game verifiziert @ 4K (1920x1200-Fenster).
 
 ---
 
