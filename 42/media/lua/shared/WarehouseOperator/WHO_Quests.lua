@@ -43,6 +43,27 @@ WHO_Quests.list = {
             { itemType = "Base.Bandage",    count = 3 },
         },
     },
+    {
+        id = "WHO_Q002",
+        name = "Medical Supplies",
+        tier = 1,
+        handler = "COMMAND",
+        briefing = {
+            "Operator, this is COMMAND.",
+            "Field medics report depleted trauma supplies at staging area.",
+            "Acquire three bandages from any pharmacy or medical site.",
+            "Deliver them to the extraction crate. Standard protocol.",
+            "Don't get bit out there. COMMAND out.",
+        },
+        description = "Acquire 3x bandages and deliver to the extraction crate.",
+        requirements = {
+            { itemType = "Base.Bandage", count = 3 },
+        },
+        rewards = {
+            { itemType = "Base.Bullets9mm", count = 20 },
+            { itemType = "Base.TinnedBeans", count = 2 },
+        },
+    },
 }
 
 -- =========================================================================

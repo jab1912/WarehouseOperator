@@ -27,6 +27,8 @@ WHO_Config.WAREHOUSE = {
 WHO_Config.QUEST_ITEM_SPAWNS = {
     -- WHO_Q001: First Delivery - Kiste im Lagerbereich
     WHO_Q001 = { x = 12622, y = 4709, z = 0 },
+    -- WHO_Q002: Medical Supplies - leicht versetzt im selben Lagerbereich
+    WHO_Q002 = { x = 12623, y = 4710, z = 0 },
 }
 
 -- =========================================================================
