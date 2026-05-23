@@ -13,6 +13,7 @@
 
 require "ISUI/ISPanel"
 
+local WHO_Config           = require "WarehouseOperator/WHO_Config"
 local WHO_Quests           = require "WarehouseOperator/WHO_Quests"
 local WHO_QuestState       = require "WarehouseOperator/WHO_QuestState"
 local WHO_RewardDispatcher = require "WHO_RewardDispatcher"
@@ -843,4 +844,4 @@ function WHO_TerminalUI.openTerminal(player)
     return terminal
 end
 
-print("[WHO] Terminal UI module loaded. [build: phase3c-buttons-1]")
+print("[WHO] Terminal UI module loaded. v" .. WHO_Config.MOD.VERSION)
