@@ -218,6 +218,50 @@ erstes Mal in diesem Mod dass wir das machen.
 
 **Deliverable:** Spielbare Progression über mehrere Spiel-Tage, sichtbarer Schwierigkeitsanstieg.
 
+
+
+### Phase 5b: Bulk Exchange System (NEU)
+
+**Konzept:** Operator gibt gewaschene Zombie-Klamotten am Warehouse ab und 
+erhält "Logistics Credits" zum Eintauschen gegen Munition / 
+Verbrauchsmaterial im Terminal-Shop. Löst das Mun-Nachschub-Problem ohne
+trivial zu werden (siehe Phase 5c für die Constraint-Layer).
+
+- [ ] Bulk-Container im Warehouse (eigene Kiste, separat von Extraction)
+- [ ] Item-Wertigkeit definieren (T-Shirts = 1 credit, Hazmat = 10, etc.)
+- [ ] Credit-Counter im Player-ModData
+- [ ] Terminal-State BULK_VIEW: Übersicht "X Items / Y Credits"
+- [ ] Terminal-State SHOP_VIEW: Shop-Liste mit Preisen
+- [ ] One-Click Bulk-Exchange (alle Items aus Container → Credits)
+- [ ] One-Click Buy-Action (Items werden in Bulk-Container gelegt)
+
+**Lore:** WHO recycles biohazard-contaminated material. Operators are
+compensated via logistics credits redeemable for field equipment.
+
+**Balance-Notes:**
+- Bulk-Refill ist für Mun und Verbrauchsmaterial gedacht
+- Tier-3-Waffen + seltene Items bleiben mission-exclusive
+- Wechselkurs muss experimentell ausbalanciert werden
+
+**Aufwand:** ~2-3 Sessions. Erweitert Terminal-UI um 2 neue States.
+
+### Phase 5c: Laundry / Detergent System (NEU)
+
+**Konzept:** Klamotten müssen vor dem Tausch gewaschen werden. Eliminiert
+trivialen Spam-Trade und integriert Mission-Rewards mit Bulk-Loop.
+
+- [ ] Waschmaschine wird durch WHO_Q002 als Mission-Reward geliefert/freigeschaltet
+- [ ] Container-Pipeline: DIRTY → washing machine + Detergent → CLEAN
+- [ ] TimedAction für Wäsche-Zyklus (~30 Spielminuten)
+- [ ] Detergent als Verbrauchsmaterial (looten oder als Quest-Reward)
+- [ ] Nur "clean" Klamotten zählen als Bulk im Terminal-Tausch
+- [ ] Optional Sandbox-Option: Bulk + Laundry abschaltbar
+
+**Side-Effects:**
+- Macht Detergent-Lieferungen zu sinnvollen Tier-1-Quests
+- Strom-Knappheit (Late-Game) wird zur Constraint
+- Sehr Tarkov-Hideout-mäßiges Investment-Feeling
+
 ---
 
 ### Phase 6: Death & Respawn Handling (2-3 Sessions)

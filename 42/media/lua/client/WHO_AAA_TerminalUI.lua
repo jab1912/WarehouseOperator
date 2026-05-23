@@ -1,8 +1,12 @@
 -- Warehouse Operator - Terminal UI
--- Phase 3a.3: Hauptmenü mit DOS-Style-Buttons (vertikal, Pfeil bei Hover)
+-- Phase 3b: Mission-View mit echter Quest-Liste + Accept + State-Anzeige
 -- Datei heißt WHO_AAA_TerminalUI.lua wegen alphabetischer Lade-Reihenfolge in client/
 
 require "ISUI/ISPanel"
+
+local WHO_Quests           = require "WarehouseOperator/WHO_Quests"
+local WHO_QuestState       = require "WarehouseOperator/WHO_QuestState"
+local WHO_RewardDispatcher = require "WHO_RewardDispatcher"
 
 WHO_TerminalUI = ISPanel:derive("WHO_TerminalUI")
 
@@ -16,16 +20,24 @@ local COLOR_TEXT_BRIGHT = {r=0.4,  g=1.0,  b=0.4,  a=1}
 local COLOR_TEXT_DIM    = {r=0.15, g=0.5,  b=0.15, a=1}
 local COLOR_TEXT_HOVER  = {r=0.7,  g=1.0,  b=0.7,  a=1}
 local COLOR_TEXT_GRAY   = {r=0.3,  g=0.3,  b=0.3,  a=1}
+local COLOR_TEXT_AMBER  = {r=1.0,  g=0.7,  b=0.0,  a=1}
 local COLOR_BLOCK_ON    = {r=0.4,  g=1.0,  b=0.4,  a=1}
 local COLOR_BLOCK_OFF   = {r=0.1,  g=0.3,  b=0.1,  a=1}
+
+-- =========================================================================
+-- WINDOW SIZE
+-- =========================================================================
+
+local WINDOW_WIDTH  = 1000
+local WINDOW_HEIGHT = 750
 
 -- =========================================================================
 -- ASSETS
 -- =========================================================================
 
 local LOGO_TEXTURE = getTexture("media/textures/who_logo_boot.png")
-local LOGO_WIDTH   = 250
-local LOGO_HEIGHT  = 250
+local LOGO_WIDTH   = 300
+local LOGO_HEIGHT  = 300
 
 -- =========================================================================
 -- STATES
@@ -53,7 +65,7 @@ local BOOT_MESSAGES = {
 }
 
 -- =========================================================================
--- MENU CONFIGURATION
+-- MAIN MENU CONFIGURATION
 -- =========================================================================
 
 local MAIN_MENU_ITEMS = {
@@ -75,7 +87,7 @@ end
 function WHO_TerminalUI:create()
     local btnWidth  = 100
     local btnHeight = 25
-    local padBottom = 20
+    local padBottom = 50    -- Genug Luft zum unteren Rand
 
     local closeBtn = ISButton:new(
         (self:getWidth() / 2) - (btnWidth / 2),
@@ -92,7 +104,9 @@ function WHO_TerminalUI:create()
     self:addChild(closeBtn)
     self.closeBtn = closeBtn
 
-    self.hoveredMenuIndex = 0
+    self.hoveredMenuIndex   = 0
+    self.hoveredQuestIndex  = 0
+    self.selectedQuestIndex = 1
 end
 
 -- =========================================================================
@@ -122,22 +136,50 @@ function WHO_TerminalUI:getCurrentBootMessage(progress)
 end
 
 -- =========================================================================
--- MENU LAYOUT
+-- LAYOUT-HELPERS
 -- =========================================================================
 
 function WHO_TerminalUI:getMenuItemRect(index)
-    local menuStartY  = 350
-    local lineHeight  = 35
-    local itemWidth   = 300
-    local itemHeight  = 30
+    local menuStartY  = 430
+    local lineHeight  = 40
+    local itemWidth   = 350
+    local itemHeight  = 32
     local itemX       = (self.width / 2) - (itemWidth / 2)
     local itemY       = menuStartY + (index - 1) * lineHeight
 
     return itemX, itemY, itemWidth, itemHeight
 end
 
+function WHO_TerminalUI:getQuestListItemRect(index)
+    local listStartX = 30
+    local listStartY = 110
+    local itemWidth  = 320
+    local itemHeight = 28
+    local itemY      = listStartY + (index - 1) * itemHeight
+
+    return listStartX, itemY, itemWidth, itemHeight
+end
+
+function WHO_TerminalUI:getActionButtonRect()
+    local btnWidth  = 280
+    local btnHeight = 35
+    local btnX      = (self.width / 2) - (btnWidth / 2)
+    local btnY      = self.height - 140   -- Mehr Luft zum CLOSE-Button
+    return btnX, btnY, btnWidth, btnHeight
+end
+
+function WHO_TerminalUI:getBackButtonRect()
+    local btnX = 25
+    local btnY = 70
+    -- Box wird zur Render-Zeit nach echter Text-Breite dimensioniert.
+    -- Fallback-Defaults für Mouse-Hover vor dem ersten Render.
+    local btnWidth  = self.backButtonActualWidth  or 100
+    local btnHeight = self.backButtonActualHeight or 32
+    return btnX, btnY, btnWidth, btnHeight
+end
+
 -- =========================================================================
--- RENDERING
+-- RENDERING - SHARED
 -- =========================================================================
 
 function WHO_TerminalUI:prerender()
@@ -167,26 +209,30 @@ function WHO_TerminalUI:renderLogo(scaledWidth, scaledHeight, yOffset)
     end
 end
 
+function WHO_TerminalUI:drawTextCentered(text, y, color, font)
+    local width = getTextManager():MeasureStringX(font, text)
+    self:drawText(text, (self.width / 2) - (width / 2), y,
+        color.r, color.g, color.b, color.a, font)
+end
+
+-- =========================================================================
+-- RENDERING - BOOTING STATE
+-- =========================================================================
+
 function WHO_TerminalUI:renderBootingState()
     if self.closeBtn then self.closeBtn:setVisible(false) end
 
-    self:renderLogo(400, 400, 40)
+    self:renderLogo(450, 450, 60)
 
     local progress = self:getBootProgress()
 
     local msg = self:getCurrentBootMessage(progress)
-    local msgWidth = getTextManager():MeasureStringX(UIFont.Small, msg)
-    self:drawText(msg,
-        (self.width / 2) - (msgWidth / 2),
-        470,
-        COLOR_TEXT_BRIGHT.r, COLOR_TEXT_BRIGHT.g, COLOR_TEXT_BRIGHT.b, COLOR_TEXT_BRIGHT.a,
-        UIFont.Small
-    )
+    self:drawTextCentered(msg, 570, COLOR_TEXT_BRIGHT, UIFont.Small)
 
-    local barWidth   = 400
-    local barHeight  = 20
+    local barWidth   = 500
+    local barHeight  = 24
     local barX       = (self.width / 2) - (barWidth / 2)
-    local barY       = 515
+    local barY       = 615
     local blockCount = 20
     local blockGap   = 2
     local blockWidth = (barWidth - (blockCount - 1) * blockGap) / blockCount
@@ -208,29 +254,19 @@ function WHO_TerminalUI:renderBootingState()
     end
 end
 
+-- =========================================================================
+-- RENDERING - READY STATE (Hauptmenü)
+-- =========================================================================
+
 function WHO_TerminalUI:renderReadyState()
     if self.closeBtn then self.closeBtn:setVisible(true) end
 
-    -- Logo oben (kleiner)
-    self:renderLogo(LOGO_WIDTH, LOGO_HEIGHT, 30)
+    self:renderLogo(LOGO_WIDTH, LOGO_HEIGHT, 50)
+    self:drawTextCentered("// LOGISTICS UPLINK ESTABLISHED", 380, COLOR_TEXT_DIM, UIFont.Small)
 
-    -- Subtitle unter dem Logo
-    local subtitle = "// LOGISTICS UPLINK ESTABLISHED"
-    local subtitleWidth = getTextManager():MeasureStringX(UIFont.Small, subtitle)
-    self:drawText(subtitle,
-        (self.width / 2) - (subtitleWidth / 2),
-        300,
-        COLOR_TEXT_DIM.r, COLOR_TEXT_DIM.g, COLOR_TEXT_DIM.b, COLOR_TEXT_DIM.a,
-        UIFont.Small
-    )
-
-    -- Hauptmenü-Buttons vertikal
-    -- Pfeil und Label werden getrennt gezeichnet, damit das Label
-    -- beim Hover NICHT seine X-Position wechselt
     for i, item in ipairs(MAIN_MENU_ITEMS) do
         local itemX, itemY, itemWidth, itemHeight = self:getMenuItemRect(i)
 
-        -- Farbe je nach Status
         local color
         if not item.enabled then
             color = COLOR_TEXT_GRAY
@@ -240,74 +276,281 @@ function WHO_TerminalUI:renderReadyState()
             color = COLOR_TEXT_BRIGHT
         end
 
-        -- Fixe X-Positionen: Pfeil bei +40, Label bei +80
-        local arrowX = itemX + 40
-        local labelX = itemX + 80
+        local arrowX = itemX + 50
+        local labelX = itemX + 100
         local textY  = itemY + 5
 
-        -- Pfeil nur zeichnen wenn dieses Item gehovered ist
         if self.hoveredMenuIndex == i and item.enabled then
             self:drawText(">", arrowX, textY,
-                color.r, color.g, color.b, color.a,
-                UIFont.Medium)
+                color.r, color.g, color.b, color.a, UIFont.Medium)
         end
 
-        -- Label immer an der gleichen Position
         self:drawText(item.label, labelX, textY,
-            color.r, color.g, color.b, color.a,
-            UIFont.Medium)
+            color.r, color.g, color.b, color.a, UIFont.Medium)
     end
 end
+
+-- =========================================================================
+-- RENDERING - MISSIONS VIEW
+-- =========================================================================
 
 function WHO_TerminalUI:renderMissionsView()
     if self.closeBtn then self.closeBtn:setVisible(true) end
 
-    local header = "// MISSION DATABASE"
-    local headerWidth = getTextManager():MeasureStringX(UIFont.Large, header)
-    self:drawText(header,
-        (self.width / 2) - (headerWidth / 2),
-        40,
-        COLOR_TEXT_BRIGHT.r, COLOR_TEXT_BRIGHT.g, COLOR_TEXT_BRIGHT.b, COLOR_TEXT_BRIGHT.a,
-        UIFont.Large)
+    self:drawTextCentered("// MISSION DATABASE", 25, COLOR_TEXT_BRIGHT, UIFont.Large)
 
-    local placeholder = "Mission view will be implemented in Phase 3b"
-    local placeholderWidth = getTextManager():MeasureStringX(UIFont.Small, placeholder)
-    self:drawText(placeholder,
-        (self.width / 2) - (placeholderWidth / 2),
-        100,
-        COLOR_TEXT_DIM.r, COLOR_TEXT_DIM.g, COLOR_TEXT_DIM.b, COLOR_TEXT_DIM.a,
-        UIFont.Small)
+    self:drawRect(20, 55, self.width - 40, 1,
+        COLOR_BORDER.a, COLOR_BORDER.r, COLOR_BORDER.g, COLOR_BORDER.b)
 
-    local backHint = "[ CLICK ANYWHERE TO RETURN ]"
-    local backWidth = getTextManager():MeasureStringX(UIFont.Small, backHint)
-    self:drawText(backHint,
-        (self.width / 2) - (backWidth / 2),
-        450,
-        COLOR_TEXT_HOVER.r, COLOR_TEXT_HOVER.g, COLOR_TEXT_HOVER.b, COLOR_TEXT_HOVER.a,
-        UIFont.Small)
+    self:renderBackButton()
+
+    local player = self.player or getPlayer()
+    local status = WHO_QuestState.getCurrentStatus(player)
+
+    if status == WHO_QuestState.STATUS.IDLE then
+        self:renderMissionsListView(player)
+    elseif status == WHO_QuestState.STATUS.ACTIVE then
+        self:renderActiveMissionView(player)
+    elseif status == WHO_QuestState.STATUS.COMPLETE then
+        self:renderCompletedMissionView(player)
+    end
+end
+
+function WHO_TerminalUI:renderBackButton()
+    local x, y, w, h = self:getBackButtonRect()
+    local color = (self.hoveredBack) and COLOR_TEXT_HOVER or COLOR_TEXT_BRIGHT
+
+    -- Text-Breite + Höhe messen und Box-Größe dynamisch berechnen
+    local text = "< BACK"
+    local tw = getTextManager():MeasureStringX(UIFont.Medium, text)
+    local th = getTextManager():getFontHeight(UIFont.Medium)
+
+    -- Padding: 15px links/rechts, 6px oben/unten
+    local boxWidth  = tw + 30
+    local boxHeight = th + 12
+
+    self:drawRectBorder(x, y, boxWidth, boxHeight, color.a, color.r, color.g, color.b)
+    self:drawText(text, x + 15, y + 6,
+        color.r, color.g, color.b, color.a, UIFont.Medium)
+
+    -- Echte Box-Größe für Hit-Detection speichern
+    self.backButtonActualWidth  = boxWidth
+    self.backButtonActualHeight = boxHeight
+end
+
+-- IDLE
+function WHO_TerminalUI:renderMissionsListView(player)
+    local available = WHO_Quests.getAvailable()
+
+    if #available == 0 then
+        self:drawTextCentered("No missions available.", 300, COLOR_TEXT_DIM, UIFont.Medium)
+        return
+    end
+
+    if self.selectedQuestIndex < 1 then self.selectedQuestIndex = 1 end
+    if self.selectedQuestIndex > #available then self.selectedQuestIndex = #available end
+
+    self:drawText("AVAILABLE MISSIONS:", 30, 80,
+        COLOR_TEXT_DIM.r, COLOR_TEXT_DIM.g, COLOR_TEXT_DIM.b, COLOR_TEXT_DIM.a, UIFont.Small)
+
+    for i, quest in ipairs(available) do
+        local itemX, itemY, itemWidth, itemHeight = self:getQuestListItemRect(i)
+
+        local color
+        local prefix
+        if self.selectedQuestIndex == i then
+            color = COLOR_TEXT_HOVER
+            prefix = "> "
+        else
+            color = COLOR_TEXT_BRIGHT
+            prefix = "  "
+        end
+
+        local label = prefix .. "[T" .. quest.tier .. "] " .. quest.name
+        self:drawText(label, itemX, itemY + 5,
+            color.r, color.g, color.b, color.a, UIFont.Medium)
+    end
+
+    self:renderQuestDetailPane(available[self.selectedQuestIndex])
+    self:renderActionButton("[ ACCEPT MISSION ]", true)
+end
+
+function WHO_TerminalUI:renderQuestDetailPane(quest)
+    if not quest then return end
+
+    local detailX = 380
+    local detailY = 80
+
+    self:drawRect(365, 80, 1, 530,
+        COLOR_BORDER.a, COLOR_BORDER.r, COLOR_BORDER.g, COLOR_BORDER.b)
+
+    self:drawText(quest.name, detailX, detailY,
+        COLOR_TEXT_HOVER.r, COLOR_TEXT_HOVER.g, COLOR_TEXT_HOVER.b, COLOR_TEXT_HOVER.a, UIFont.Large)
+
+    self:drawText("TIER " .. quest.tier .. " // Handler: " .. (quest.handler or "COMMAND"),
+        detailX, detailY + 35,
+        COLOR_TEXT_DIM.r, COLOR_TEXT_DIM.g, COLOR_TEXT_DIM.b, COLOR_TEXT_DIM.a, UIFont.Small)
+
+    local y = detailY + 80
+    self:drawText("BRIEFING:", detailX, y,
+        COLOR_TEXT_DIM.r, COLOR_TEXT_DIM.g, COLOR_TEXT_DIM.b, COLOR_TEXT_DIM.a, UIFont.Small)
+    y = y + 22
+
+    if quest.briefing then
+        for _, line in ipairs(quest.briefing) do
+            self:drawText(line, detailX, y,
+                COLOR_TEXT_BRIGHT.r, COLOR_TEXT_BRIGHT.g, COLOR_TEXT_BRIGHT.b, COLOR_TEXT_BRIGHT.a, UIFont.Small)
+            y = y + 20
+        end
+    elseif quest.description then
+        self:drawText(quest.description, detailX, y,
+            COLOR_TEXT_BRIGHT.r, COLOR_TEXT_BRIGHT.g, COLOR_TEXT_BRIGHT.b, COLOR_TEXT_BRIGHT.a, UIFont.Small)
+        y = y + 20
+    end
+
+    y = y + 20
+    self:drawText("OBJECTIVES:", detailX, y,
+        COLOR_TEXT_DIM.r, COLOR_TEXT_DIM.g, COLOR_TEXT_DIM.b, COLOR_TEXT_DIM.a, UIFont.Small)
+    y = y + 22
+
+    for _, req in ipairs(quest.requirements) do
+        local line = "  > Deliver " .. req.count .. "x " .. req.itemType
+        self:drawText(line, detailX, y,
+            COLOR_TEXT_BRIGHT.r, COLOR_TEXT_BRIGHT.g, COLOR_TEXT_BRIGHT.b, COLOR_TEXT_BRIGHT.a, UIFont.Small)
+        y = y + 20
+    end
+
+    y = y + 15
+    self:drawText("REWARD:", detailX, y,
+        COLOR_TEXT_DIM.r, COLOR_TEXT_DIM.g, COLOR_TEXT_DIM.b, COLOR_TEXT_DIM.a, UIFont.Small)
+    y = y + 22
+
+    for _, rew in ipairs(quest.rewards) do
+        local line = "  + " .. rew.count .. "x " .. rew.itemType
+        self:drawText(line, detailX, y,
+            COLOR_TEXT_BRIGHT.r, COLOR_TEXT_BRIGHT.g, COLOR_TEXT_BRIGHT.b, COLOR_TEXT_BRIGHT.a, UIFont.Small)
+        y = y + 20
+    end
+end
+
+-- ACTIVE
+function WHO_TerminalUI:renderActiveMissionView(player)
+    local quest = WHO_QuestState.getCurrentQuest(player)
+    if not quest then return end
+
+    self:drawTextCentered("MISSION IN PROGRESS", 100, COLOR_TEXT_AMBER, UIFont.Medium)
+
+    self:drawTextCentered(quest.name, 160, COLOR_TEXT_HOVER, UIFont.Large)
+    self:drawTextCentered("TIER " .. quest.tier .. " // Handler: " .. (quest.handler or "COMMAND"),
+        200, COLOR_TEXT_DIM, UIFont.Small)
+
+    local y = 270
+    self:drawText("OBJECTIVES:", 120, y,
+        COLOR_TEXT_DIM.r, COLOR_TEXT_DIM.g, COLOR_TEXT_DIM.b, COLOR_TEXT_DIM.a, UIFont.Small)
+    y = y + 28
+
+    for _, req in ipairs(quest.requirements) do
+        local line = "  > Deliver " .. req.count .. "x " .. req.itemType
+        self:drawText(line, 120, y,
+            COLOR_TEXT_BRIGHT.r, COLOR_TEXT_BRIGHT.g, COLOR_TEXT_BRIGHT.b, COLOR_TEXT_BRIGHT.a, UIFont.Small)
+        y = y + 22
+    end
+
+    y = y + 40
+    self:drawText("// Deliver items to the EXTRACTION CRATE in the warehouse.", 120, y,
+        COLOR_TEXT_DIM.r, COLOR_TEXT_DIM.g, COLOR_TEXT_DIM.b, COLOR_TEXT_DIM.a, UIFont.Small)
+    y = y + 20
+    self:drawText("// Return to this terminal once complete.", 120, y,
+        COLOR_TEXT_DIM.r, COLOR_TEXT_DIM.g, COLOR_TEXT_DIM.b, COLOR_TEXT_DIM.a, UIFont.Small)
+end
+
+-- COMPLETE
+function WHO_TerminalUI:renderCompletedMissionView(player)
+    local quest = WHO_QuestState.getCurrentQuest(player)
+    if not quest then return end
+
+    self:drawTextCentered("MISSION COMPLETE", 100, COLOR_TEXT_AMBER, UIFont.Large)
+    self:drawTextCentered("Awaiting extraction confirmation", 155, COLOR_TEXT_DIM, UIFont.Small)
+
+    self:drawTextCentered(quest.name, 230, COLOR_TEXT_HOVER, UIFont.Medium)
+
+    local y = 300
+    self:drawText("INCOMING REWARDS:", 120, y,
+        COLOR_TEXT_DIM.r, COLOR_TEXT_DIM.g, COLOR_TEXT_DIM.b, COLOR_TEXT_DIM.a, UIFont.Small)
+    y = y + 28
+
+    for _, rew in ipairs(quest.rewards) do
+        local line = "  + " .. rew.count .. "x " .. rew.itemType
+        self:drawText(line, 120, y,
+            COLOR_TEXT_BRIGHT.r, COLOR_TEXT_BRIGHT.g, COLOR_TEXT_BRIGHT.b, COLOR_TEXT_BRIGHT.a, UIFont.Small)
+        y = y + 22
+    end
+
+    self:renderActionButton("[ CONFIRM EXTRACTION ]", true)
+end
+
+function WHO_TerminalUI:renderActionButton(label, enabled)
+    local x, y, w, h = self:getActionButtonRect()
+    local color = enabled and (self.hoveredAction and COLOR_TEXT_HOVER or COLOR_TEXT_BRIGHT) or COLOR_TEXT_GRAY
+
+    self:drawRectBorder(x, y, w, h, color.a, color.r, color.g, color.b)
+
+    local tw = getTextManager():MeasureStringX(UIFont.Medium, label)
+    self:drawText(label, x + (w/2) - (tw/2), y + 8,
+        color.r, color.g, color.b, color.a, UIFont.Medium)
 end
 
 -- =========================================================================
 -- INPUT HANDLING
 -- =========================================================================
 
-function WHO_TerminalUI:onMouseMove(dx, dy)
-    if self.state ~= STATE_READY then
-        self.hoveredMenuIndex = 0
-        return
-    end
+function WHO_TerminalUI:isPointInRect(px, py, rx, ry, rw, rh)
+    return px >= rx and px <= rx + rw and py >= ry and py <= ry + rh
+end
 
+function WHO_TerminalUI:onMouseMove(dx, dy)
     local mouseX = self:getMouseX()
     local mouseY = self:getMouseY()
 
-    self.hoveredMenuIndex = 0
-    for i, item in ipairs(MAIN_MENU_ITEMS) do
-        if item.enabled then
-            local itemX, itemY, itemWidth, itemHeight = self:getMenuItemRect(i)
-            if mouseX >= itemX and mouseX <= itemX + itemWidth
-                and mouseY >= itemY and mouseY <= itemY + itemHeight then
-                self.hoveredMenuIndex = i
-                break
+    self.hoveredMenuIndex  = 0
+    self.hoveredQuestIndex = 0
+    self.hoveredBack       = false
+    self.hoveredAction     = false
+
+    if self.state == STATE_READY then
+        for i, item in ipairs(MAIN_MENU_ITEMS) do
+            if item.enabled then
+                local itemX, itemY, itemWidth, itemHeight = self:getMenuItemRect(i)
+                if self:isPointInRect(mouseX, mouseY, itemX, itemY, itemWidth, itemHeight) then
+                    self.hoveredMenuIndex = i
+                    break
+                end
+            end
+        end
+    elseif self.state == STATE_MISSIONS_VIEW then
+        local bx, by, bw, bh = self:getBackButtonRect()
+        if self:isPointInRect(mouseX, mouseY, bx, by, bw, bh) then
+            self.hoveredBack = true
+        end
+
+        local player = self.player or getPlayer()
+        local status = WHO_QuestState.getCurrentStatus(player)
+
+        if status == WHO_QuestState.STATUS.IDLE then
+            local available = WHO_Quests.getAvailable()
+            for i, _ in ipairs(available) do
+                local ix, iy, iw, ih = self:getQuestListItemRect(i)
+                if self:isPointInRect(mouseX, mouseY, ix, iy, iw, ih) then
+                    self.hoveredQuestIndex = i
+                    break
+                end
+            end
+        end
+
+        if status == WHO_QuestState.STATUS.IDLE or status == WHO_QuestState.STATUS.COMPLETE then
+            local ax, ay, aw, ah = self:getActionButtonRect()
+            if self:isPointInRect(mouseX, mouseY, ax, ay, aw, ah) then
+                self.hoveredAction = true
             end
         end
     end
@@ -318,16 +561,47 @@ function WHO_TerminalUI:onMouseDown(x, y)
         for i, item in ipairs(MAIN_MENU_ITEMS) do
             if item.enabled then
                 local itemX, itemY, itemWidth, itemHeight = self:getMenuItemRect(i)
-                if x >= itemX and x <= itemX + itemWidth
-                    and y >= itemY and y <= itemY + itemHeight then
+                if self:isPointInRect(x, y, itemX, itemY, itemWidth, itemHeight) then
                     self:handleMenuAction(item.action)
                     return true
                 end
             end
         end
     elseif self.state == STATE_MISSIONS_VIEW then
-        self.state = STATE_READY
-        return true
+        local bx, by, bw, bh = self:getBackButtonRect()
+        if self:isPointInRect(x, y, bx, by, bw, bh) then
+            self.state = STATE_READY
+            return true
+        end
+
+        local player = self.player or getPlayer()
+        local status = WHO_QuestState.getCurrentStatus(player)
+
+        if status == WHO_QuestState.STATUS.IDLE then
+            local available = WHO_Quests.getAvailable()
+            for i, _ in ipairs(available) do
+                local ix, iy, iw, ih = self:getQuestListItemRect(i)
+                if self:isPointInRect(x, y, ix, iy, iw, ih) then
+                    self.selectedQuestIndex = i
+                    return true
+                end
+            end
+
+            local ax, ay, aw, ah = self:getActionButtonRect()
+            if self:isPointInRect(x, y, ax, ay, aw, ah) then
+                local selected = available[self.selectedQuestIndex]
+                if selected then
+                    WHO_QuestState.acceptQuest(player, selected.id)
+                end
+                return true
+            end
+        elseif status == WHO_QuestState.STATUS.COMPLETE then
+            local ax, ay, aw, ah = self:getActionButtonRect()
+            if self:isPointInRect(x, y, ax, ay, aw, ah) then
+                WHO_RewardDispatcher.dispatch(player)
+                return true
+            end
+        end
     end
 
     return ISPanel.onMouseDown(self, x, y)
@@ -338,6 +612,7 @@ function WHO_TerminalUI:handleMenuAction(action)
 
     if action == "open_missions" then
         self.state = STATE_MISSIONS_VIEW
+        self.selectedQuestIndex = 1
     elseif action == "shutdown" then
         self:close()
     end
@@ -363,15 +638,12 @@ end
 -- =========================================================================
 
 function WHO_TerminalUI:new(player)
-    local width  = 800
-    local height = 600
-
     local screenW = getCore():getScreenWidth()
     local screenH = getCore():getScreenHeight()
-    local x = (screenW - width) / 2
-    local y = (screenH - height) / 2
+    local x = (screenW - WINDOW_WIDTH) / 2
+    local y = (screenH - WINDOW_HEIGHT) / 2
 
-    local o = ISPanel:new(x, y, width, height)
+    local o = ISPanel:new(x, y, WINDOW_WIDTH, WINDOW_HEIGHT)
     setmetatable(o, self)
     self.__index = self
 

@@ -1,7 +1,6 @@
 -- Warehouse Operator - Quest Definitions
 -- Hier liegen ALLE Quests als statische Daten.
 -- Kein Verhalten in dieser Datei - nur Definitionen.
--- Andere Module greifen via require darauf zu.
 
 local WHO_Quests = {}
 
@@ -11,29 +10,31 @@ local WHO_Quests = {}
 --
 -- Jede Quest hat folgende Felder:
 --   id           : eindeutiger String, beginnt mit "WHO_Q" + 3-stellige Nummer
---   name         : Anzeigename (wird später im Terminal angezeigt)
---   description  : Mission-Briefing-Text
+--   name         : Anzeigename
 --   tier         : 1=easy, 2=medium, 3=hard
---   requirements : Liste von Items die in die Extraction-Kiste müssen
---                  Format: { { itemType="Base.X", count=N }, ... }
---   rewards      : Liste von Items die als Belohnung erscheinen
---                  Format: { { itemType="Base.X", count=N }, ... }
---
--- WICHTIG: itemType MUSS exakt der PZ-Item-ID entsprechen.
--- "Base.TinnedBeans" etc. — siehe scripts/items.txt der Vanilla-Files
--- oder PZWiki. Falsche IDs führen zu silent failures!
+--   handler      : ID des Auftraggebers (Phase 3b.7) - aktuell nur "COMMAND" verwendet
+--   briefing     : Liste von Text-Zeilen für die Codec-Conversation (Phase 3b.5)
+--                  Phase 3b zeigt nur die erste Zeile als "Mission Briefing" statisch
+--   description  : Kurz-Beschreibung (fallback wenn briefing leer)
+--   requirements : Liste: { { itemType="Base.X", count=N }, ... }
+--   rewards      : Liste: { { itemType="Base.X", count=N }, ... }
 --
 -- =========================================================================
 
 WHO_Quests.list = {
-    -- ---------------------------------------------------------------------
-    -- TIER 1: Beginner Quests
-    -- ---------------------------------------------------------------------
     {
         id = "WHO_Q001",
         name = "First Delivery",
-        description = "Logistics needs rations. Drop 5 cans of beans into the extraction crate.",
         tier = 1,
+        handler = "COMMAND",
+        briefing = {
+            "Operator, this is COMMAND.",
+            "Logistics personnel report critical food shortage at the depot.",
+            "Acquire five units of canned beans from any source.",
+            "Deliver them to the extraction crate in our facility.",
+            "Standard compensation will be provided. COMMAND out.",
+        },
+        description = "Acquire 5x canned beans and deliver to the extraction crate.",
         requirements = {
             { itemType = "Base.TinnedBeans", count = 5 },
         },
@@ -43,12 +44,11 @@ WHO_Quests.list = {
         },
     },
 }
+
 -- =========================================================================
 -- HELPER FUNCTIONS
 -- =========================================================================
 
--- Findet eine Quest anhand ihrer ID
--- Gibt die Quest-Table zurück, oder nil wenn nicht gefunden
 function WHO_Quests.getById(questId)
     for _, quest in ipairs(WHO_Quests.list) do
         if quest.id == questId then
@@ -58,14 +58,22 @@ function WHO_Quests.getById(questId)
     return nil
 end
 
--- Liefert alle Quests eines bestimmten Tiers
--- Gibt eine Liste zurück (kann leer sein)
 function WHO_Quests.getByTier(tier)
     local result = {}
     for _, quest in ipairs(WHO_Quests.list) do
         if quest.tier == tier then
             table.insert(result, quest)
         end
+    end
+    return result
+end
+
+-- Liefert alle Quests die der Operator aktuell annehmen kann
+-- Aktuell: einfach alle. Später (Phase 5): nach Progression filtern.
+function WHO_Quests.getAvailable()
+    local result = {}
+    for _, quest in ipairs(WHO_Quests.list) do
+        table.insert(result, quest)
     end
     return result
 end
