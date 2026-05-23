@@ -183,6 +183,26 @@ viel Code anpassen. Hier ist's billig, weil nur Phase-2-State zu persistieren is
 
 **Deliverable:** Truck holt Loot, Reward erscheint, Loop schließt sich.
 
+### Phase 4c (NEU): Mission Briefing Printer
+
+**Konzept:** Dot-Matrix-Drucker im Bürozimmer neben dem Terminal. 
+Beim Annehmen einer Mission spuckt er ein "Briefing"-Item aus, das der 
+Operator ins Inventar nimmt und unterwegs lesen kann.
+
+- [ ] Custom Item `WHO_MissionBriefing` (Papier-Sprite, leichtgewichtig)
+- [ ] Drucker-Objekt im Warehouse platziert (Sprite-Sound-Event beim Drucken)
+- [ ] Quest-Daten als ModData ins Item serialisieren (id, name, description, requirements, spawn location)
+- [ ] Right-click Read → Custom-UI oder Konijima-Style Modal mit Briefing-Text
+- [ ] Optional Tier 2+: Map-Sprite mit Quest-Spawn-Marker
+- [ ] Sound: Dot-Matrix-Print-Sound (klassisches 90s-Sound-Effect)
+- [ ] Beim Quest-Complete: Briefing-Item kann zerstört werden ("burn after reading")
+
+**Lore-Note:** "Hardcopy required for field operations. Digital uplink 
+classified beyond facility perimeter."
+
+**Aufwand:** ~2-3 Sessions. Erfordert Custom-Item-Skripting (scripts/) - 
+erstes Mal in diesem Mod dass wir das machen.
+
 ---
 
 ### Phase 5: Quest-Pool & Progression (3-5 Sessions)
@@ -305,20 +325,25 @@ viel Code anpassen. Hier ist's billig, weil nur Phase-2-State zu persistieren is
   in Phase 8 auf PZ Stable verifizieren.
 
 
-## Asset-Strategie
+## Asset-Strategie (UPDATED 23.05.26)
 
-- **Image-Generation:** OpenArt.ai (User-Subscription, wird zur Asset-Phase reaktiviert)
-  Vorteile: mehrere Modelle parallel, Img2Img, Style-Konsistenz, Style-References.
-- **Kein Selbst-Pixel-Push** (Entscheidung 22.05.26 / Tag 2).
-- **Pixel-Konvertierung** falls nötig: kostenlose Web-Konverter
-  (lospec.com etc.) — keine zusätzliche Subscription.
+**AI-Generation funktioniert besser als initial angenommen!**
+Test mit Image GPT 2 / Grok zeigt: isometric pixel-art Sprites mit 
+PZ-tauglichem Stil sind machbar. Workflow validiert mit Drucker-Sprite.
 
-**Asset-Bedarf je Phase:**
-- Phase 3a (Static Terminal UI): vermutlich keiner (alles Code-rendered)
-- Phase 3c (Terminal Polish): CRT-Scanline-Overlay, Boot-Logo, evtl. Sound-Wave-Sprite
-- Phase 4b (Truck-Atmosphäre): ggf. Truck-Sprite-Sequence (oder nur Sound)
-- Phase 7 (Release-Polish): Mod-Icon (128x128 mod-Root poster.png),
-                          Workshop-Header (1024x512), Custom-Item-Icons (falls nötig)
+**Pipeline:**
+- **UI-Bilder (Logos, Boot-Screens, CRT-Effekte):** OpenArt / Grok mit 
+  klassischen Prompts
+- **Pixel-Art-Sprites (Custom-Items, Möbel):** ChatGPT-Image / Grok mit 
+  spezialisiertem Iso-Prompt-Pattern
+- **Mod-Icon + Workshop-Banner:** OpenArt mit Marketing-Prompts
+
+**Prompt-Template für PZ-Sprites:** (siehe Drucker-Test) — explizit nach
+"Project Zomboid game sprite", "isometric pixel art", "transparent background",
+"limited color palette" fragen.
+
+**Empfehlung:** OpenArt-Abo (~30€/Monat) reaktivieren wenn Phase 4c oder 
+Phase 5 anstehen. Bis dahin sammeln wir Asset-Ideen.
 
 ---
 
