@@ -1,5 +1,5 @@
 -- Warehouse Operator - Terminal UI
--- Phase 3a.2: Boot-Sequenz mit Logo + Block-Ladebalken + wechselnde Status-Texte
+-- Phase 3a.3: Hauptmenü mit DOS-Style-Buttons (vertikal, Pfeil bei Hover)
 -- Datei heißt WHO_AAA_TerminalUI.lua wegen alphabetischer Lade-Reihenfolge in client/
 
 require "ISUI/ISPanel"
@@ -14,30 +14,33 @@ local COLOR_BG          = {r=0,    g=0,    b=0,    a=1}
 local COLOR_BORDER      = {r=0.2,  g=0.8,  b=0.2,  a=1}
 local COLOR_TEXT_BRIGHT = {r=0.4,  g=1.0,  b=0.4,  a=1}
 local COLOR_TEXT_DIM    = {r=0.15, g=0.5,  b=0.15, a=1}
-local COLOR_BLOCK_ON    = {r=0.4,  g=1.0,  b=0.4,  a=1}    -- Helle Blöcke
-local COLOR_BLOCK_OFF   = {r=0.1,  g=0.3,  b=0.1,  a=1}    -- Dunkle Blöcke
+local COLOR_TEXT_HOVER  = {r=0.7,  g=1.0,  b=0.7,  a=1}
+local COLOR_TEXT_GRAY   = {r=0.3,  g=0.3,  b=0.3,  a=1}
+local COLOR_BLOCK_ON    = {r=0.4,  g=1.0,  b=0.4,  a=1}
+local COLOR_BLOCK_OFF   = {r=0.1,  g=0.3,  b=0.1,  a=1}
 
 -- =========================================================================
 -- ASSETS
 -- =========================================================================
 
 local LOGO_TEXTURE = getTexture("media/textures/who_logo_boot.png")
-local LOGO_WIDTH   = 400
-local LOGO_HEIGHT  = 400
+local LOGO_WIDTH   = 250
+local LOGO_HEIGHT  = 250
+
+-- =========================================================================
+-- STATES
+-- =========================================================================
+
+local STATE_BOOTING       = "booting"
+local STATE_READY         = "ready"
+local STATE_MISSIONS_VIEW = "missions_view"
 
 -- =========================================================================
 -- BOOT-SEQUENZ-KONFIGURATION
 -- =========================================================================
--- Status-Codes für die UI-State-Machine
-local STATE_BOOTING = "booting"
-local STATE_READY   = "ready"
 
--- Boot dauert ca. 4 Sekunden (240 Frames bei 60fps; render-Loop ist FPS-abhängig)
--- Wir nutzen aber Echtzeit via getTimestampMs() für Frame-rate-Unabhängigkeit.
-local BOOT_DURATION_MS = 4000   -- 4 Sekunden
+local BOOT_DURATION_MS = 4000
 
--- Status-Meldungen die während des Boots durchgeschaltet werden
--- Jede Meldung hängt am erreichten Prozent-Wert
 local BOOT_MESSAGES = {
     { atPercent = 0.00, text = "WHO TERMINAL v2.1.4 (c) 1994" },
     { atPercent = 0.10, text = "POST: Memory check... 640K OK" },
@@ -50,6 +53,17 @@ local BOOT_MESSAGES = {
 }
 
 -- =========================================================================
+-- MENU CONFIGURATION
+-- =========================================================================
+
+local MAIN_MENU_ITEMS = {
+    { label = "MISSIONS",  enabled = true,  action = "open_missions" },
+    { label = "INVENTORY", enabled = false, action = "open_inventory" },
+    { label = "STATUS",    enabled = false, action = "open_status" },
+    { label = "SHUTDOWN",  enabled = true,  action = "shutdown" },
+}
+
+-- =========================================================================
 -- LIFECYCLE
 -- =========================================================================
 
@@ -59,7 +73,6 @@ function WHO_TerminalUI:initialise()
 end
 
 function WHO_TerminalUI:create()
-    -- Close-Button anlegen (existiert immer, wird aber im BOOTING-State versteckt)
     local btnWidth  = 100
     local btnHeight = 25
     local padBottom = 20
@@ -78,10 +91,12 @@ function WHO_TerminalUI:create()
     closeBtn:instantiate()
     self:addChild(closeBtn)
     self.closeBtn = closeBtn
+
+    self.hoveredMenuIndex = 0
 end
 
 -- =========================================================================
--- BOOT-LOGIK: Prozent berechnen + aktuelle Message ermitteln
+-- BOOT-LOGIK
 -- =========================================================================
 
 function WHO_TerminalUI:getBootProgress()
@@ -95,7 +110,6 @@ function WHO_TerminalUI:getBootProgress()
 end
 
 function WHO_TerminalUI:getCurrentBootMessage(progress)
-    -- Finde die jüngste Message deren atPercent <= progress ist
     local currentMsg = BOOT_MESSAGES[1].text
     for _, msg in ipairs(BOOT_MESSAGES) do
         if progress >= msg.atPercent then
@@ -105,6 +119,21 @@ function WHO_TerminalUI:getCurrentBootMessage(progress)
         end
     end
     return currentMsg
+end
+
+-- =========================================================================
+-- MENU LAYOUT
+-- =========================================================================
+
+function WHO_TerminalUI:getMenuItemRect(index)
+    local menuStartY  = 350
+    local lineHeight  = 35
+    local itemWidth   = 300
+    local itemHeight  = 30
+    local itemX       = (self.width / 2) - (itemWidth / 2)
+    local itemY       = menuStartY + (index - 1) * lineHeight
+
+    return itemX, itemY, itemWidth, itemHeight
 end
 
 -- =========================================================================
@@ -122,29 +151,29 @@ function WHO_TerminalUI:prerender()
 end
 
 function WHO_TerminalUI:render()
-    -- LOGO zentriert oben (in beiden States gleich)
-    if LOGO_TEXTURE then
-        local logoX = (self.width / 2) - (LOGO_WIDTH / 2)
-        local logoY = 40
-        self:drawTextureScaled(LOGO_TEXTURE, logoX, logoY, LOGO_WIDTH, LOGO_HEIGHT, 1)
-    end
-
-    -- State-spezifisches Rendering
     if self.state == STATE_BOOTING then
         self:renderBootingState()
-    else
+    elseif self.state == STATE_READY then
         self:renderReadyState()
+    elseif self.state == STATE_MISSIONS_VIEW then
+        self:renderMissionsView()
+    end
+end
+
+function WHO_TerminalUI:renderLogo(scaledWidth, scaledHeight, yOffset)
+    if LOGO_TEXTURE then
+        local logoX = (self.width / 2) - (scaledWidth / 2)
+        self:drawTextureScaled(LOGO_TEXTURE, logoX, yOffset, scaledWidth, scaledHeight, 1)
     end
 end
 
 function WHO_TerminalUI:renderBootingState()
-    -- Close-Button während Boot verstecken
     if self.closeBtn then self.closeBtn:setVisible(false) end
 
-    -- Prozent berechnen
+    self:renderLogo(400, 400, 40)
+
     local progress = self:getBootProgress()
 
-    -- Status-Message
     local msg = self:getCurrentBootMessage(progress)
     local msgWidth = getTextManager():MeasureStringX(UIFont.Small, msg)
     self:drawText(msg,
@@ -154,14 +183,13 @@ function WHO_TerminalUI:renderBootingState()
         UIFont.Small
     )
 
-    -- Block-Ladebalken
-    local barWidth     = 400
-    local barHeight    = 20
-    local barX         = (self.width / 2) - (barWidth / 2)
-    local barY         = 515
-    local blockCount   = 20      -- 20 Blöcke
-    local blockGap     = 2       -- 2 Pixel zwischen Blöcken
-    local blockWidth   = (barWidth - (blockCount - 1) * blockGap) / blockCount
+    local barWidth   = 400
+    local barHeight  = 20
+    local barX       = (self.width / 2) - (barWidth / 2)
+    local barY       = 515
+    local blockCount = 20
+    local blockGap   = 2
+    local blockWidth = (barWidth - (blockCount - 1) * blockGap) / blockCount
 
     local activeBlocks = math.floor(progress * blockCount)
 
@@ -173,7 +201,6 @@ function WHO_TerminalUI:renderBootingState()
             color.a, color.r, color.g, color.b)
     end
 
-    -- Transition zu READY wenn fertig
     if progress >= 1.0 then
         self.state = STATE_READY
         WHO_TerminalUI.hasBootedThisSession = true
@@ -182,18 +209,138 @@ function WHO_TerminalUI:renderBootingState()
 end
 
 function WHO_TerminalUI:renderReadyState()
-    -- Close-Button im Ready-State sichtbar
     if self.closeBtn then self.closeBtn:setVisible(true) end
+
+    -- Logo oben (kleiner)
+    self:renderLogo(LOGO_WIDTH, LOGO_HEIGHT, 30)
 
     -- Subtitle unter dem Logo
     local subtitle = "// LOGISTICS UPLINK ESTABLISHED"
     local subtitleWidth = getTextManager():MeasureStringX(UIFont.Small, subtitle)
     self:drawText(subtitle,
         (self.width / 2) - (subtitleWidth / 2),
-        470,
+        300,
         COLOR_TEXT_DIM.r, COLOR_TEXT_DIM.g, COLOR_TEXT_DIM.b, COLOR_TEXT_DIM.a,
         UIFont.Small
     )
+
+    -- Hauptmenü-Buttons vertikal
+    -- Pfeil und Label werden getrennt gezeichnet, damit das Label
+    -- beim Hover NICHT seine X-Position wechselt
+    for i, item in ipairs(MAIN_MENU_ITEMS) do
+        local itemX, itemY, itemWidth, itemHeight = self:getMenuItemRect(i)
+
+        -- Farbe je nach Status
+        local color
+        if not item.enabled then
+            color = COLOR_TEXT_GRAY
+        elseif self.hoveredMenuIndex == i then
+            color = COLOR_TEXT_HOVER
+        else
+            color = COLOR_TEXT_BRIGHT
+        end
+
+        -- Fixe X-Positionen: Pfeil bei +40, Label bei +80
+        local arrowX = itemX + 40
+        local labelX = itemX + 80
+        local textY  = itemY + 5
+
+        -- Pfeil nur zeichnen wenn dieses Item gehovered ist
+        if self.hoveredMenuIndex == i and item.enabled then
+            self:drawText(">", arrowX, textY,
+                color.r, color.g, color.b, color.a,
+                UIFont.Medium)
+        end
+
+        -- Label immer an der gleichen Position
+        self:drawText(item.label, labelX, textY,
+            color.r, color.g, color.b, color.a,
+            UIFont.Medium)
+    end
+end
+
+function WHO_TerminalUI:renderMissionsView()
+    if self.closeBtn then self.closeBtn:setVisible(true) end
+
+    local header = "// MISSION DATABASE"
+    local headerWidth = getTextManager():MeasureStringX(UIFont.Large, header)
+    self:drawText(header,
+        (self.width / 2) - (headerWidth / 2),
+        40,
+        COLOR_TEXT_BRIGHT.r, COLOR_TEXT_BRIGHT.g, COLOR_TEXT_BRIGHT.b, COLOR_TEXT_BRIGHT.a,
+        UIFont.Large)
+
+    local placeholder = "Mission view will be implemented in Phase 3b"
+    local placeholderWidth = getTextManager():MeasureStringX(UIFont.Small, placeholder)
+    self:drawText(placeholder,
+        (self.width / 2) - (placeholderWidth / 2),
+        100,
+        COLOR_TEXT_DIM.r, COLOR_TEXT_DIM.g, COLOR_TEXT_DIM.b, COLOR_TEXT_DIM.a,
+        UIFont.Small)
+
+    local backHint = "[ CLICK ANYWHERE TO RETURN ]"
+    local backWidth = getTextManager():MeasureStringX(UIFont.Small, backHint)
+    self:drawText(backHint,
+        (self.width / 2) - (backWidth / 2),
+        450,
+        COLOR_TEXT_HOVER.r, COLOR_TEXT_HOVER.g, COLOR_TEXT_HOVER.b, COLOR_TEXT_HOVER.a,
+        UIFont.Small)
+end
+
+-- =========================================================================
+-- INPUT HANDLING
+-- =========================================================================
+
+function WHO_TerminalUI:onMouseMove(dx, dy)
+    if self.state ~= STATE_READY then
+        self.hoveredMenuIndex = 0
+        return
+    end
+
+    local mouseX = self:getMouseX()
+    local mouseY = self:getMouseY()
+
+    self.hoveredMenuIndex = 0
+    for i, item in ipairs(MAIN_MENU_ITEMS) do
+        if item.enabled then
+            local itemX, itemY, itemWidth, itemHeight = self:getMenuItemRect(i)
+            if mouseX >= itemX and mouseX <= itemX + itemWidth
+                and mouseY >= itemY and mouseY <= itemY + itemHeight then
+                self.hoveredMenuIndex = i
+                break
+            end
+        end
+    end
+end
+
+function WHO_TerminalUI:onMouseDown(x, y)
+    if self.state == STATE_READY then
+        for i, item in ipairs(MAIN_MENU_ITEMS) do
+            if item.enabled then
+                local itemX, itemY, itemWidth, itemHeight = self:getMenuItemRect(i)
+                if x >= itemX and x <= itemX + itemWidth
+                    and y >= itemY and y <= itemY + itemHeight then
+                    self:handleMenuAction(item.action)
+                    return true
+                end
+            end
+        end
+    elseif self.state == STATE_MISSIONS_VIEW then
+        self.state = STATE_READY
+        return true
+    end
+
+    return ISPanel.onMouseDown(self, x, y)
+end
+
+function WHO_TerminalUI:handleMenuAction(action)
+    print("[WHO] Menu action: " .. action)
+
+    if action == "open_missions" then
+        self.state = STATE_MISSIONS_VIEW
+    elseif action == "shutdown" then
+        self:close()
+    end
 end
 
 -- =========================================================================
@@ -231,7 +378,6 @@ function WHO_TerminalUI:new(player)
     o.player = player
     o.moveWithMouse = true
 
-    -- State setzen: wenn schon mal gebootet wurde, direkt zu READY
     if WHO_TerminalUI.hasBootedThisSession then
         o.state = STATE_READY
         print("[WHO] Terminal opened (already booted, skipping boot sequence)")
