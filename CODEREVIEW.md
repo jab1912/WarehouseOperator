@@ -11,6 +11,10 @@ report for triage.
 
 **Effort scale:** trivial (<5 min) · low (~15–30 min) · medium (~1–2 h).
 
+**Triage — 2026-05-24 (Bucket 1 done):** display names (`7ca864c`), UI button +
+line-block DRY (`0017f47`), and `DEBUG.ENABLED` default `false` (`e28ed57`) are
+resolved — see the ✅ annotations below. All other findings remain open.
+
 ## Overall verdict
 
 The codebase is in good shape. **There are no CRITICAL findings.** The terminal
@@ -34,6 +38,8 @@ placeholder** (TODO marker, lines 28–33) — not a finding.
   dev, but it ships the F9/F10 debug hooks live.
   *Fix:* add to the Phase 9 release checklist to flip it to `false` (or drive it
   from a sandbox option). *Effort:* trivial.
+  > **✅ RESOLVED (`e28ed57`):** default flipped to `false`, with a "set true for
+  > local dev" comment above it.
 
 ---
 
@@ -121,18 +127,24 @@ one dead field — i.e. maintainability, not correctness.
   *Fix:* resolve a display name once
   (`getScriptManager():getItem(type):getDisplayName()`, with a fallback to the raw
   type) and reuse it. *Effort:* low–medium.
+  > **✅ RESOLVED (`7ca864c`):** added a cached `itemDisplayName()` helper
+  > (pcall-guarded, raw-id fallback); routed all four render paths through it.
 
 - **NICE-TO-HAVE — duplicated "menu text button" rendering.** The same pattern
   (label + hover `>`/`<` arrow + stored hit-width) is copy-pasted across
   `renderClose` (788), `renderActionButton` (770), `renderBackButton` (567), and
   `renderBriefingAbort` (836). *Fix:* one `drawMenuTextButton(label, x, y, hovered,
   align, arrowChar)` helper. *Effort:* medium.
+  > **✅ RESOLVED (`0017f47`):** extracted `drawMenuTextButton(...)`; all four
+  > renderers delegate to it. Behaviour verified by trace + LuaLS `--check`.
 
 - **NICE-TO-HAVE — duplicated objectives/rewards loops.** The "objectives" loop
   and the "rewards" loop each appear in three render paths (detail pane / active /
   complete / briefing). *Fix:* extract `renderObjectives(x, y, quest, lineH)` and
   `renderRewards(x, y, quest, lineH)`. *Effort:* medium. (Folds in the display-name
   fix above.)
+  > **✅ RESOLVED (`0017f47`):** extracted `renderObjectiveLines()` /
+  > `renderRewardLines()`; all six loops now delegate.
 
 - **NICE-TO-HAVE — `color.r, color.g, color.b, color.a` repeated ~30×.** Every
   left-aligned `drawText` spells out all four channels. *Fix:* a
