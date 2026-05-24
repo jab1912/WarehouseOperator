@@ -479,6 +479,67 @@ function WHO_TerminalUI:drawTextCentered(text, y, color, font)
         color.r, color.g, color.b, color.a, font)
 end
 
+-- Borderless DOS menu-text button: a label with a hover-only directional arrow,
+-- no box (the pattern shared by CLOSE / ACTION / BACK / ABORT).
+--   align "center" -> label centered on self.width; arrow appears to its left.
+--   align "left"   -> label at x + arrow-column; arrow at x. (x is ignored for "center".)
+-- Returns hitW, hitH so the caller can store the geometry for its hit-test rect.
+function WHO_TerminalUI:drawMenuTextButton(label, x, y, hovered, align, arrowChar, enabled)
+    if enabled == nil then enabled = true end
+    local tm       = getTextManager()
+    local font     = UIFont.Medium
+    local labelW   = tm:MeasureStringX(font, label)
+    local arrowCol = tm:MeasureStringX(font, arrowChar .. " ")
+    local textY    = y + BTN_TEXT_VPAD
+
+    local color
+    if not enabled then
+        color = COLOR_TEXT_GRAY
+    elseif hovered then
+        color = COLOR_TEXT_HOVER
+    else
+        color = COLOR_TEXT_BRIGHT
+    end
+
+    local labelX, hitW
+    if align == "center" then
+        labelX = math.floor((self.width / 2) - (labelW / 2))
+        hitW   = labelW + BTN_HIT_PAD * 2
+    else
+        labelX = x + arrowCol
+        hitW   = arrowCol + labelW + BTN_HIT_PAD
+    end
+
+    if hovered and enabled then
+        local arrowX = (align == "center") and (labelX - arrowCol) or x
+        self:drawText(arrowChar, arrowX, textY, color.r, color.g, color.b, color.a, font)
+    end
+    self:drawText(label, labelX, textY, color.r, color.g, color.b, color.a, font)
+
+    return hitW, tm:getFontHeight(font) + BTN_TEXT_VPAD * 2
+end
+
+-- OBJECTIVES / REWARD line blocks (shared by the detail pane, the active/complete
+-- views and the codec objectives beat). Draws rows from (x, y) downward and
+-- returns the y below the block.
+function WHO_TerminalUI:renderObjectiveLines(quest, x, y, lineH)
+    for _, req in ipairs(quest.requirements) do
+        self:drawText("  > Deliver " .. req.count .. "x " .. itemDisplayName(req.itemType), x, y,
+            COLOR_TEXT_BRIGHT.r, COLOR_TEXT_BRIGHT.g, COLOR_TEXT_BRIGHT.b, COLOR_TEXT_BRIGHT.a, UIFont.Small)
+        y = y + lineH
+    end
+    return y
+end
+
+function WHO_TerminalUI:renderRewardLines(quest, x, y, lineH)
+    for _, rew in ipairs(quest.rewards) do
+        self:drawText("  + " .. rew.count .. "x " .. itemDisplayName(rew.itemType), x, y,
+            COLOR_TEXT_BRIGHT.r, COLOR_TEXT_BRIGHT.g, COLOR_TEXT_BRIGHT.b, COLOR_TEXT_BRIGHT.a, UIFont.Small)
+        y = y + lineH
+    end
+    return y
+end
+
 -- =========================================================================
 -- RENDERING - BOOTING STATE
 -- =========================================================================
@@ -588,24 +649,10 @@ function WHO_TerminalUI:renderMissionsView()
 end
 
 function WHO_TerminalUI:renderBackButton()
-    local L  = self:getMissionsLayout()
-    local tm = getTextManager()
-    local color = self.hoveredBack and COLOR_TEXT_HOVER or COLOR_TEXT_BRIGHT
-
-    local label    = "BACK"
-    local labelW   = tm:MeasureStringX(UIFont.Medium, label)
-    local arrowCol = tm:MeasureStringX(UIFont.Medium, "> ")
-    local labelX   = L.backX + arrowCol       -- feste Label-Position; Arrow-Spalte links
-    local textY    = L.backY + BTN_TEXT_VPAD
-
-    if self.hoveredBack then
-        self:drawText(">", L.backX, textY, color.r, color.g, color.b, color.a, UIFont.Medium)
-    end
-    self:drawText(label, labelX, textY, color.r, color.g, color.b, color.a, UIFont.Medium)
-
+    local L = self:getMissionsLayout()
     -- Hit-Fläche (Arrow-Spalte + Label + Padding) für getBackButtonRect speichern.
-    self.backButtonActualWidth  = arrowCol + labelW + BTN_HIT_PAD
-    self.backButtonActualHeight = tm:getFontHeight(UIFont.Medium) + BTN_TEXT_VPAD * 2
+    self.backButtonActualWidth, self.backButtonActualHeight =
+        self:drawMenuTextButton("BACK", L.backX, L.backY, self.hoveredBack, "left", ">")
 end
 
 -- IDLE
@@ -704,24 +751,14 @@ function WHO_TerminalUI:renderQuestDetailPane(quest)
         COLOR_TEXT_DIM.r, COLOR_TEXT_DIM.g, COLOR_TEXT_DIM.b, COLOR_TEXT_DIM.a, UIFont.Small)
     y = y + 22
 
-    for _, req in ipairs(quest.requirements) do
-        local line = "  > Deliver " .. req.count .. "x " .. itemDisplayName(req.itemType)
-        self:drawText(line, detailX, y,
-            COLOR_TEXT_BRIGHT.r, COLOR_TEXT_BRIGHT.g, COLOR_TEXT_BRIGHT.b, COLOR_TEXT_BRIGHT.a, UIFont.Small)
-        y = y + lineH
-    end
+    y = self:renderObjectiveLines(quest, detailX, y, lineH)
 
     y = y + 15
     self:drawText("REWARD:", detailX, y,
         COLOR_TEXT_DIM.r, COLOR_TEXT_DIM.g, COLOR_TEXT_DIM.b, COLOR_TEXT_DIM.a, UIFont.Small)
     y = y + 22
 
-    for _, rew in ipairs(quest.rewards) do
-        local line = "  + " .. rew.count .. "x " .. itemDisplayName(rew.itemType)
-        self:drawText(line, detailX, y,
-            COLOR_TEXT_BRIGHT.r, COLOR_TEXT_BRIGHT.g, COLOR_TEXT_BRIGHT.b, COLOR_TEXT_BRIGHT.a, UIFont.Small)
-        y = y + lineH
-    end
+    self:renderRewardLines(quest, detailX, y, lineH)
 end
 
 -- ACTIVE
@@ -745,12 +782,7 @@ function WHO_TerminalUI:renderActiveMissionView(player)
         COLOR_TEXT_DIM.r, COLOR_TEXT_DIM.g, COLOR_TEXT_DIM.b, COLOR_TEXT_DIM.a, UIFont.Small)
     y = y + 28
 
-    for _, req in ipairs(quest.requirements) do
-        local line = "  > Deliver " .. req.count .. "x " .. itemDisplayName(req.itemType)
-        self:drawText(line, indentX, y,
-            COLOR_TEXT_BRIGHT.r, COLOR_TEXT_BRIGHT.g, COLOR_TEXT_BRIGHT.b, COLOR_TEXT_BRIGHT.a, UIFont.Small)
-        y = y + 22
-    end
+    y = self:renderObjectiveLines(quest, indentX, y, 22)
 
     y = y + 40
     self:drawText("// Deliver items to the EXTRACTION CRATE in the warehouse.", indentX, y,
@@ -780,51 +812,19 @@ function WHO_TerminalUI:renderCompletedMissionView(player)
         COLOR_TEXT_DIM.r, COLOR_TEXT_DIM.g, COLOR_TEXT_DIM.b, COLOR_TEXT_DIM.a, UIFont.Small)
     y = y + 28
 
-    for _, rew in ipairs(quest.rewards) do
-        local line = "  + " .. rew.count .. "x " .. itemDisplayName(rew.itemType)
-        self:drawText(line, indentX, y,
-            COLOR_TEXT_BRIGHT.r, COLOR_TEXT_BRIGHT.g, COLOR_TEXT_BRIGHT.b, COLOR_TEXT_BRIGHT.a, UIFont.Small)
-        y = y + 22
-    end
+    self:renderRewardLines(quest, indentX, y, 22)
 
     self:renderActionButton("CONFIRM EXTRACTION", true)
 end
 
 function WHO_TerminalUI:renderActionButton(label, enabled)
-    local tm     = getTextManager()
-    local labelW = tm:MeasureStringX(UIFont.Medium, label)
-    self.actionHitW = labelW + BTN_HIT_PAD * 2   -- Hit-Fläche = Text + Padding
-
-    local x, y  = self:getActionButtonRect()
-    local color = enabled and (self.hoveredAction and COLOR_TEXT_HOVER or COLOR_TEXT_BRIGHT) or COLOR_TEXT_GRAY
-
-    local labelX = math.floor((self.width / 2) - (labelW / 2))
-    local textY  = y + BTN_TEXT_VPAD
-
-    if enabled and self.hoveredAction then
-        local arrowCol = tm:MeasureStringX(UIFont.Medium, "> ")
-        self:drawText(">", labelX - arrowCol, textY, color.r, color.g, color.b, color.a, UIFont.Medium)
-    end
-    self:drawText(label, labelX, textY, color.r, color.g, color.b, color.a, UIFont.Medium)
+    local _, y = self:getActionButtonRect()
+    self.actionHitW = self:drawMenuTextButton(label, nil, y, self.hoveredAction, "center", ">", enabled)
 end
 
 function WHO_TerminalUI:renderClose()
-    local tm     = getTextManager()
-    local label  = "CLOSE"
-    local labelW = tm:MeasureStringX(UIFont.Medium, label)
-    self.closeHitW = labelW + BTN_HIT_PAD * 2
-
-    local x, y  = self:getCloseRect()
-    local color = self.hoveredClose and COLOR_TEXT_HOVER or COLOR_TEXT_BRIGHT
-
-    local labelX = math.floor((self.width / 2) - (labelW / 2))
-    local textY  = y + BTN_TEXT_VPAD
-
-    if self.hoveredClose then
-        local arrowCol = tm:MeasureStringX(UIFont.Medium, "> ")
-        self:drawText(">", labelX - arrowCol, textY, color.r, color.g, color.b, color.a, UIFont.Medium)
-    end
-    self:drawText(label, labelX, textY, color.r, color.g, color.b, color.a, UIFont.Medium)
+    local _, y = self:getCloseRect()
+    self.closeHitW = self:drawMenuTextButton("CLOSE", nil, y, self.hoveredClose, "center", ">")
 end
 
 -- =========================================================================
@@ -857,23 +857,9 @@ end
 
 -- ABORT oben links, stilgleich zum BACK-Button (Pfeil nur bei Hover, hier "<").
 function WHO_TerminalUI:renderBriefingAbort()
-    local L     = self:getBriefingLayout()
-    local tm    = getTextManager()
-    local color = self.hoveredAbort and COLOR_TEXT_HOVER or COLOR_TEXT_BRIGHT
-
-    local label    = "ABORT"
-    local labelW   = tm:MeasureStringX(UIFont.Medium, label)
-    local arrowCol = tm:MeasureStringX(UIFont.Medium, "< ")
-    local labelX   = L.M + arrowCol
-    local textY    = L.titleY + BTN_TEXT_VPAD
-
-    if self.hoveredAbort then
-        self:drawText("<", L.M, textY, color.r, color.g, color.b, color.a, UIFont.Medium)
-    end
-    self:drawText(label, labelX, textY, color.r, color.g, color.b, color.a, UIFont.Medium)
-
-    self.abortButtonActualWidth  = arrowCol + labelW + BTN_HIT_PAD
-    self.abortButtonActualHeight = tm:getFontHeight(UIFont.Medium) + BTN_TEXT_VPAD * 2
+    local L = self:getBriefingLayout()
+    self.abortButtonActualWidth, self.abortButtonActualHeight =
+        self:drawMenuTextButton("ABORT", L.M, L.titleY, self.hoveredAbort, "left", "<")
 end
 
 -- Handler-Name + Portrait-Platzhalter (Asset kommt später).
@@ -933,22 +919,14 @@ function WHO_TerminalUI:renderBriefingObjectives(quest)
         COLOR_TEXT_DIM.r, COLOR_TEXT_DIM.g, COLOR_TEXT_DIM.b, COLOR_TEXT_DIM.a, UIFont.Small)
     y = y + 22
 
-    for _, req in ipairs(quest.requirements) do
-        self:drawText("  > Deliver " .. req.count .. "x " .. itemDisplayName(req.itemType), L.rightX, y,
-            COLOR_TEXT_BRIGHT.r, COLOR_TEXT_BRIGHT.g, COLOR_TEXT_BRIGHT.b, COLOR_TEXT_BRIGHT.a, UIFont.Small)
-        y = y + lineH
-    end
+    y = self:renderObjectiveLines(quest, L.rightX, y, lineH)
 
     y = y + 15
     self:drawText("REWARD:", L.rightX, y,
         COLOR_TEXT_DIM.r, COLOR_TEXT_DIM.g, COLOR_TEXT_DIM.b, COLOR_TEXT_DIM.a, UIFont.Small)
     y = y + 22
 
-    for _, rew in ipairs(quest.rewards) do
-        self:drawText("  + " .. rew.count .. "x " .. itemDisplayName(rew.itemType), L.rightX, y,
-            COLOR_TEXT_BRIGHT.r, COLOR_TEXT_BRIGHT.g, COLOR_TEXT_BRIGHT.b, COLOR_TEXT_BRIGHT.a, UIFont.Small)
-        y = y + lineH
-    end
+    self:renderRewardLines(quest, L.rightX, y, lineH)
 end
 
 -- ACCEPT MISSION / DECLINE, randlose DOS-Buttons unten (Hover hellt auf).
