@@ -25,7 +25,7 @@ konsistent cheesy. Vergleichbar mit Die Hard, Total Recall, Demolition Man.
 **In-Game-Verwendung:**
 - Logo erscheint im Terminal-Boot (Phase 3a)
 - Quest-Briefings als Absender: "WHO Logistics Division"
-- Audio: "Operator [N], this is WHO Command..." bei Funksprüchen (Phase 6)
+- Audio: "Operator [N], this is WHO Command..." bei Funksprüchen (Phase 7)
 - Workshop-Branding: "WHO - Warehouse Operator" als Mod-Name
 - Konsistente fake-Corporate-Sprache: "containment", "asset recovery", 
   "extraction protocol", "operator deployment"
@@ -47,7 +47,7 @@ konsistent cheesy. Vergleichbar mit Die Hard, Total Recall, Demolition Man.
 
 | Position | Koordinaten | Zweck |
 |---|---|---|
-| SPAWN_POS | 12619 / 4686 / 0 | Vorhof, vor Eingang (Operator-Spawn + Phase-6-Insertion) |
+| SPAWN_POS | 12619 / 4686 / 0 | Vorhof, vor Eingang (Operator-Spawn + Phase-7-Insertion) |
 | TERMINAL_POS | 12607 / 4728 / 0 | Tisch im Chefbüro (Phase 3) |
 | EXTRACTION_POS | 12626 / 4700 / 0 | Kiste im Lagerbereich (Phase 2+) |
 
@@ -119,7 +119,7 @@ WarehouseOperator/
 ### Phase 2.5: Persistenz / ModData (1-2 Sessions) — NEU
 
 - [ ] Quest-State über Save/Load erhalten via ModData
-- [ ] Operator-Counter persistieren (für Phase 6)
+- [ ] Operator-Counter persistieren (für Phase 7)
 - [ ] OnSave / OnGameStart-Wiederherstellung implementieren
 - [ ] Stash-Inhalt-Referenz (Extraction-Kiste): Wiedererkennen nach Reload
 - [ ] Migration-Pattern: was wenn Spielstand älter als aktuelle Mod-Version ist
@@ -319,10 +319,10 @@ Features, die den Mod zwischen Phasen kaputtmachen. Platzhalter ("CLASSIFIED",
 Starter-Voucher) überbrücken Lücken, bis die nächste Sub-Phase sie auffüllt.
 
 #### Out of Scope für Phase 5
-- Tier-2/3+-Quests (City-Missionen) → Phase 6
-- Vehicle-Damage/Replacement-Logik → Phase 6
-- Mehrere Handler (DOC, OVERSEER, etc.) → Phase 7
-- Stealth/Sneak-Mechanik für die Rail-Yard-Route → Phase 7
+- Tier-2/3+-Quests (City-Missionen) → Phase 6 (City Operations)
+- Vehicle-Damage/Replacement-Logik → Phase 6 (City Operations)
+- Mehrere Handler (DOC, OVERSEER, etc.) → Phase 8 (Polish)
+- Stealth/Sneak-Mechanik für die Rail-Yard-Route → Phase 6 (City Operations)
 
 #### Bekannte offene Entscheidungen
 - Vehicle-Typ (Pickup vs Truck) — Entscheidung bei 5c-Implementation
@@ -333,7 +333,38 @@ Starter-Voucher) überbrücken Lücken, bis die nächste Sub-Phase sie auffüllt
 
 ---
 
-### Phase 6: Death & Respawn Handling (2-3 Sessions)
+### Phase 6: City Operations (NEU)
+
+#### Konzept
+
+Mit Vehicle und etabliertem Vertrauen (Ende Phase 5) öffnet sich Louisville.
+Echte Extraction-Missionen in der Stadt: weiter weg, gefährlicher, höhere Tiers.
+Die drei Zugangsrouten (Checkpoint = laut/zombiedicht, Rail Yard = eng/leise,
+Wood Routes = lang/sicher — siehe LORE.md) werden spielmechanisch relevant.
+
+#### Tier-2/3-Quests (City-Missionen)
+- [ ] T2: Ammo, bessere Werkzeuge, Mechanik-Teile (Mid-Game-Locations)
+- [ ] T3: Waffen, seltene Items, militärische Ausrüstung (End-Game, gefährliche Locations)
+- [ ] Reward-Pools pro Tier mit zufälliger Auswahl aus dem Pool
+- [ ] Quest-Freischaltung: T2 nach Abschluss der T1-Probation, T3 nach X T2-Quests
+- [ ] City-Quest-Spawns deutlich weiter weg vom Warehouse — Vehicle quasi Pflicht
+
+#### Vehicle-Systeme (Aufbau auf dem 5c-Vehicle-Drop)
+- [ ] Vehicle-Damage-Tracking (Zustand persistiert zwischen Missionen)
+- [ ] Vehicle-Replacement-Logik: Verlust → WHO ersetzt nach 3 Penalty-Missionen
+- [ ] Fuel/Maintenance-Loop, gekoppelt an Tankstelle (Phase 5a) + Supply Order (5b)
+
+#### Stealth / Routen
+- [ ] Rail-Yard-Route: Stealth/Sneak-Mechanik (eng, leise, weniger Zombies)
+- [ ] Checkpoint-Route: laut und zombiedicht — Risiko vs. Tempo
+- [ ] Wood-Routes: lang, aber sicher — bewusstes Trade-off-Design
+
+**Deliverable:** Spielbare City-Expeditions-Schleife mit Tier-Progression,
+Vehicle-abhängiger Logistik und routenabhängigem Risiko.
+
+---
+
+### Phase 7: Death & Respawn Handling (2-3 Sessions)
 
 - [ ] Death-Event abfangen
 - [ ] Insertion-Cutscene bauen:
@@ -350,7 +381,7 @@ Starter-Voucher) überbrücken Lücken, bis die nächste Sub-Phase sie auffüllt
 
 ---
 
-### Phase 7: Polish & Externe Dependencies
+### Phase 8: Polish & Externe Dependencies
 
 - [ ] Sound-Design vervollständigen: Truck, Terminal, Funksprüche, Mission-Notifications
 - [ ] Icons und Texturen final
@@ -380,7 +411,7 @@ Starter-Voucher) überbrücken Lücken, bis die nächste Sub-Phase sie auffüllt
 
 ---
 
-### Phase 8: Release
+### Phase 9: Release
 
 - [ ] Workshop-Beschreibung, Screenshots, Trailer-GIF
 - [ ] mod.info finalisieren (Version, Dependencies, Author)
@@ -401,7 +432,7 @@ Starter-Voucher) überbrücken Lücken, bis die nächste Sub-Phase sie auffüllt
 
 - **Truck-Variante A oder B** (Entscheidung in Phase 4)
 - **Terminal-Style:** DOS-Grün oder Win-3.11-Grau (Entscheidung in Phase 3a)
-- **Externe Mod-Dependencies** (Permission-Anfragen in Phase 7)
+- **Externe Mod-Dependencies** (Permission-Anfragen in Phase 8)
 
 ---
 
@@ -424,7 +455,7 @@ Starter-Voucher) überbrücken Lücken, bis die nächste Sub-Phase sie auffüllt
 - **Spawner ist robust gegen falsche Tile-Koordinaten** durch Boden-Fallback:
   Wenn keine Container am Ziel-Tile, landen Items auf dem Boden statt zu
   verschwinden. Trotzdem: bei verschlossenen Häusern problematisch
-  (siehe Phase 7 - "Verschlossene Häuser als Quest-Element").
+  (siehe Phase 8 - "Verschlossene Häuser als Quest-Element").
 
 - **TODO Phase 5+:** Spawner um "scan nearby tiles for container" erweitern
   (3x3 oder 5x5 Raster um das Ziel-Tile checken). Macht Quest-Design robuster
@@ -435,7 +466,7 @@ Starter-Voucher) überbrücken Lücken, bis die nächste Sub-Phase sie auffüllt
   Ursache: AMD-OpenGL/Display-Init-Race-Condition (verifiziert via DebugLog —
   PZ stirbt im OpenGL-Init, lange vor Lua-Loading).
   Konsequenz: nicht modspezifisch, kein Bugfix nötig. Vor Workshop-Release
-  in Phase 8 auf PZ Stable verifizieren.
+  in Phase 9 auf PZ Stable verifizieren.
 
 
 ## Asset-Strategie (UPDATED 23.05.26)
@@ -468,7 +499,7 @@ Phase 5 anstehen. Bis dahin sammeln wir Asset-Ideen.
 | Quest-MVP + Persistenz (bis Phase 2.5) | +6-10h | 0.5-1 Woche |
 | Terminal-UI komplett (bis Phase 3c) | +15-25h | 1.5-2 Wochen |
 | Truck + Quest-Pool (bis Phase 5) | +15-25h | 1-2 Wochen |
-| Death-Loop (bis Phase 6) | +8-15h | 1 Woche |
-| Workshop-Release (bis Phase 8) | +25-50h | 2-4 Wochen |
+| Death-Loop (bis Phase 7) | +8-15h | 1 Woche |
+| Workshop-Release (bis Phase 9) | +25-50h | 2-4 Wochen |
 
 **Total MVP-Release:** ~80-130h Restzeit, also 2-3 Monate bei 10-15h/Woche.
