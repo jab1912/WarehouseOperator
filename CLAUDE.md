@@ -25,9 +25,50 @@ directly in `%USERPROFILE%\Zomboid\mods\WarehouseOperator`.
 - **In-game debug hotkeys** (only active when `WHO_Config.DEBUG.ENABLED`):
   - `F9` teleport to SPAWN_POS · `F10` log current position
   - `Numpad 9` accept test quest WHO_Q001 · `Numpad 0` log quest state
-- **Static analysis:** VSCode + EmmyLua extension. `.emmyrc.json` points the
-  analyzer at Umbrella type stubs (`C:/Users/manta/dev/Umbrella/library`),
-  Lua 5.1, workspace root `42/media/lua`. There is no CLI lint command.
+- **Static analysis:** two analyzers, two configs — see "Local dev setup"
+  below. VSCode + EmmyLua extension reads `.emmyrc.json` (Umbrella type stubs,
+  Lua 5.1, workspace root `42/media/lua`). The Claude Code `lua-lsp` plugin runs
+  LuaLS (`lua-language-server`), which ignores `.emmyrc.json` but does provide a
+  headless CLI check.
+
+## Local dev setup (per-machine, NOT committed to the repo)
+
+Two independent Lua analyzers can run against this code, and they use
+**different config files** — do not conflate them:
+
+- **VSCode + EmmyLua extension** → reads `.emmyrc.json` (committed).
+- **Claude Code `lua-lsp` plugin** → runs **LuaLS** (`lua-language-server`),
+  which reads `.luarc.json` and **ignores `.emmyrc.json`**.
+
+**Install LuaLS (required per-machine; the binary is not in the repo):**
+
+```powershell
+winget install --id LuaLS.lua-language-server
+```
+
+winget drops the binary under `…\WinGet\Packages\LuaLS.lua-language-server…\bin`
+and adds that folder to the **user PATH** — but a running Claude Code keeps the
+PATH it launched with, so **fully restart Claude Code** afterward or the
+plugin's LSP spawn fails with `ENOENT: ... lua-language-server`. Verify with
+`Get-Command lua-language-server`.
+
+**Headless syntax check (CLI equivalent of the LSP, no editor needed):**
+
+```powershell
+lua-language-server --check <path> --checklevel Error   # Error = syntax only
+```
+
+Quirk: a **single-file** `--check` suppresses `undefined-global`; point it at a
+**directory** (e.g. `42/media/lua/client`) for full workspace-mode diagnostics.
+
+**PZ globals** (`getPlayer`, `ISPanel`, `UIFont`, `getTextManager`, …) surface
+as `undefined-global` *warnings* under LuaLS — noise, not bugs. To silence them
+you need the **Umbrella type stubs** present locally **and** a `.luarc.json`
+pointing `workspace.library` at them with `runtime.version = "Lua 5.1"`. The
+stubs are **not** in the repo, and the `.emmyrc.json` path
+(`C:/Users/manta/dev/Umbrella/library`) is from a different machine. Until both
+exist locally, LuaLS flags PZ globals as undefined but still parses the code
+cleanly (0 syntax errors).
 
 ## Layout & module loading (the non-obvious part)
 
