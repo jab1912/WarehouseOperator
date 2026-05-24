@@ -50,7 +50,9 @@ WHO_Config.MOD = {
 -- =========================================================================
 
 WHO_Config.DEBUG = {
-    ENABLED = true,
+    -- Default false for Workshop builds (no debug hotkeys for players).
+    -- Set true for LOCAL DEV to enable the F9/F10 hotkeys below.
+    ENABLED = false,
     TELEPORT_KEY = 67,  -- F9: teleport to SPAWN_POS
     LOG_POS_KEY  = 68,  -- F10: log current position
 }
