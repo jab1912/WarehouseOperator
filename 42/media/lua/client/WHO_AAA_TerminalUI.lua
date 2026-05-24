@@ -66,6 +66,29 @@ local function clampNum(v, lo, hi)
     return v
 end
 
+-- Greedy Word-Wrap: zerlegt text in Zeilen, die maxWidth (px) nicht überschreiten.
+-- Wird für den Briefing-Text-Bereich gebraucht; der getippte Teilstring wird live
+-- umgebrochen, während Zeichen dazukommen. Ein einzelnes überlanges Wort steht allein.
+local function wrapText(text, font, maxWidth)
+    local tm    = getTextManager()
+    local lines = {}
+    local current = ""
+
+    for word in string.gmatch(text, "%S+") do
+        local candidate = (current == "") and word or (current .. " " .. word)
+        if current == "" or tm:MeasureStringX(font, candidate) <= maxWidth then
+            current = candidate
+        else
+            table.insert(lines, current)
+            current = word
+        end
+    end
+    if current ~= "" then
+        table.insert(lines, current)
+    end
+    return lines
+end
+
 -- =========================================================================
 -- ASSETS
 -- =========================================================================
@@ -79,12 +102,17 @@ local LOGO_TEXTURE = getTexture("media/textures/who_logo_boot.png")
 local STATE_BOOTING       = "booting"
 local STATE_READY         = "ready"
 local STATE_MISSIONS_VIEW = "missions_view"
+local STATE_BRIEFING      = "briefing"
 
 -- =========================================================================
 -- BOOT-SEQUENZ-KONFIGURATION
 -- =========================================================================
 
 local BOOT_DURATION_MS = 4000
+
+-- Briefing-Codec: Typewriter-Geschwindigkeit (ms pro Zeichen). getTimestampMs()-getrieben,
+-- gleicher Timing-Ansatz wie die Boot-Sequenz. Kleinere Werte = schneller getippt.
+local TYPE_SPEED_MS = 35
 
 local BOOT_MESSAGES = {
     { atPercent = 0.00, text = "WHO TERMINAL v2.1.4 (c) 1994" },
@@ -126,6 +154,16 @@ function WHO_TerminalUI:create()
     self.hoveredAction      = false
     self.hoveredClose       = false
     self.selectedQuestIndex = 1
+
+    -- Briefing-Codec-State (Phase 3b.5)
+    self.briefingQuest          = nil
+    self.briefingLineIndex      = 1
+    self.briefingLineStartMs    = 0
+    self.briefingForceComplete  = false
+    self.briefingShowObjectives = false
+    self.hoveredAbort           = false
+    self.hoveredBriefingAccept  = false
+    self.hoveredBriefingDecline = false
 end
 
 -- =========================================================================
@@ -152,6 +190,64 @@ function WHO_TerminalUI:getCurrentBootMessage(progress)
         end
     end
     return currentMsg
+end
+
+-- =========================================================================
+-- BRIEFING-LOGIK (Codec, Phase 3b.5)
+-- =========================================================================
+
+-- ACCEPT in der Missions-View startet jetzt erst den Codec; angenommen wird die
+-- Quest erst am Ende des Briefings (oder via ABORT/DECLINE gar nicht).
+function WHO_TerminalUI:enterBriefing(quest)
+    self.briefingQuest         = quest
+    self.briefingLineIndex     = 1
+    self.briefingLineStartMs   = getTimestampMs()
+    self.briefingForceComplete = false
+    -- Ohne Briefing-Zeilen direkt in den Objectives-Beat (defensiv; aktuelle Quests
+    -- haben alle ein briefing-Array).
+    self.briefingShowObjectives = (not quest.briefing) or (#quest.briefing == 0)
+    self.state                  = STATE_BRIEFING
+    print("[WHO] Briefing started: " .. quest.id)
+end
+
+function WHO_TerminalUI:exitBriefing()
+    self.briefingQuest          = nil
+    self.briefingShowObjectives = false
+    self.state                  = STATE_MISSIONS_VIEW
+end
+
+-- Anzahl der aktuell sichtbaren Zeichen der laufenden Briefing-Zeile.
+-- briefingForceComplete (Klick während des Tippens) springt sofort ans Zeilenende.
+function WHO_TerminalUI:getBriefingTypedChars(lineLen)
+    if self.briefingForceComplete then return lineLen end
+    local elapsed = getTimestampMs() - self.briefingLineStartMs
+    local chars   = math.floor(elapsed / TYPE_SPEED_MS)
+    if chars > lineLen then chars = lineLen end
+    if chars < 0 then chars = 0 end
+    return chars
+end
+
+-- Klick im Typewriter-Beat: noch tippend -> Zeile sofort fertig; sonst nächste
+-- Zeile; nach der letzten Zeile in den Objectives-Beat wechseln.
+function WHO_TerminalUI:advanceBriefing()
+    local quest = self.briefingQuest
+    if not quest or not quest.briefing then
+        self.briefingShowObjectives = true
+        return
+    end
+
+    local line  = quest.briefing[self.briefingLineIndex] or ""
+    local typed = self:getBriefingTypedChars(#line)
+
+    if typed < #line then
+        self.briefingForceComplete = true
+    elseif self.briefingLineIndex >= #quest.briefing then
+        self.briefingShowObjectives = true
+    else
+        self.briefingLineIndex     = self.briefingLineIndex + 1
+        self.briefingLineStartMs   = getTimestampMs()
+        self.briefingForceComplete = false
+    end
 end
 
 -- =========================================================================
@@ -259,6 +355,68 @@ function WHO_TerminalUI:getBackButtonRect()
     return L.backX, L.backY, btnWidth, btnHeight
 end
 
+-- Briefing-Codec-Layout (Phase 3b.5). Proportional verankert wie die Missions-View:
+-- Header oben, Portrait+Handler links, Text-Bereich rechts, Footer unten verankert.
+function WHO_TerminalUI:getBriefingLayout()
+    local tm    = getTextManager()
+    local M     = self:getMargin()
+    local thLg  = tm:getFontHeight(UIFont.Large)
+    local thMed = tm:getFontHeight(UIFont.Medium)
+
+    local titleY     = math.floor(M * 0.5)
+    local dividerY   = titleY + thLg + 14
+    local contentTop = dividerY + 24
+
+    -- Linke Spalte: Handler-Name über der Portrait-Box.
+    local handlerY     = contentTop
+    local portraitX    = M
+    local portraitY    = handlerY + thMed + 16
+    local portraitSize = clampNum(math.floor(self.height * 0.45), 320, 480)
+
+    -- Footer (Hint / Buttons) unten verankert, gleiche Pad-Mathematik wie CLOSE.
+    local pad   = math.max(FOOTER_PAD_MIN, math.floor(self.height * 0.04))
+    local hitH  = thMed + BTN_TEXT_VPAD * 2
+    local footerY = self.height - pad - hitH
+
+    -- Rechte Spalte: Text-Bereich rechts vom Portrait, bis über den Footer.
+    -- rightTop liegt 80px unter contentTop -> klare Trennung Handler-Name <-> Message.
+    local rightX      = portraitX + portraitSize + 40
+    local rightTop    = contentTop + 80
+    local rightW      = self.width - M - rightX
+    local rightBottom = footerY - 24
+
+    return {
+        M = M, titleY = titleY, dividerY = dividerY, contentTop = contentTop,
+        handlerY = handlerY,
+        portraitX = portraitX, portraitY = portraitY, portraitSize = portraitSize,
+        rightX = rightX, rightTop = rightTop, rightW = rightW, rightBottom = rightBottom,
+        footerY = footerY, hitH = hitH, thMed = thMed,
+    }
+end
+
+-- ABORT: randloser DOS-Text-Button oben links (Escape-Hatch im Codec), stilgleich
+-- zum BACK-Button der Missions-View, aber mit nach-links zeigendem "<"-Pfeil.
+function WHO_TerminalUI:getBriefingAbortRect()
+    local L = self:getBriefingLayout()
+    local btnWidth  = self.abortButtonActualWidth  or 110
+    local btnHeight = self.abortButtonActualHeight or L.hitH
+    return L.M, L.titleY, btnWidth, btnHeight
+end
+
+-- ACCEPT MISSION / DECLINE: zwei randlose DOS-Buttons nebeneinander, unten zentriert.
+-- Einzige Quelle für beide Geometrien (Render UND Hit-Test) -> liefert 8 Werte:
+-- ax, ay, aw, ah, dx, dy, dw, dh.
+function WHO_TerminalUI:getBriefingButtonRects()
+    local L  = self:getBriefingLayout()
+    local tm = getTextManager()
+    local aW = tm:MeasureStringX(UIFont.Medium, "[ ACCEPT MISSION ]")
+    local dW = tm:MeasureStringX(UIFont.Medium, "[ DECLINE ]")
+    local gap    = 60
+    local startX = math.floor((self.width / 2) - ((aW + gap + dW) / 2))
+    local y, h   = L.footerY, L.hitH
+    return startX, y, aW, h, startX + aW + gap, y, dW, h
+end
+
 -- =========================================================================
 -- RENDERING - SHARED
 -- =========================================================================
@@ -280,6 +438,8 @@ function WHO_TerminalUI:render()
         self:renderReadyState()
     elseif self.state == STATE_MISSIONS_VIEW then
         self:renderMissionsView()
+    elseif self.state == STATE_BRIEFING then
+        self:renderBriefingView()
     end
 end
 
@@ -645,6 +805,143 @@ function WHO_TerminalUI:renderClose()
 end
 
 -- =========================================================================
+-- RENDERING - BRIEFING VIEW (Codec, Phase 3b.5)
+-- =========================================================================
+
+function WHO_TerminalUI:renderBriefingView()
+    local L     = self:getBriefingLayout()
+    local quest = self.briefingQuest
+    if not quest then
+        -- Defensive: ohne Quest gibt es nichts zu briefen -> zurück in die Liste.
+        self.state = STATE_MISSIONS_VIEW
+        return
+    end
+
+    self:drawTextCentered("// INCOMING TRANSMISSION", L.titleY, COLOR_TEXT_BRIGHT, UIFont.Large)
+    self:drawRect(L.M, L.dividerY, self.width - 2 * L.M, 1,
+        COLOR_BORDER.a, COLOR_BORDER.r, COLOR_BORDER.g, COLOR_BORDER.b)
+
+    self:renderBriefingAbort()
+    self:renderBriefingPortrait(quest)
+
+    if self.briefingShowObjectives then
+        self:renderBriefingObjectives(quest)
+        self:renderBriefingButtons()
+    else
+        self:renderBriefingText(quest)
+    end
+end
+
+-- ABORT oben links, stilgleich zum BACK-Button (Pfeil nur bei Hover, hier "<").
+function WHO_TerminalUI:renderBriefingAbort()
+    local L     = self:getBriefingLayout()
+    local tm    = getTextManager()
+    local color = self.hoveredAbort and COLOR_TEXT_HOVER or COLOR_TEXT_BRIGHT
+
+    local label    = "ABORT"
+    local labelW   = tm:MeasureStringX(UIFont.Medium, label)
+    local arrowCol = tm:MeasureStringX(UIFont.Medium, "< ")
+    local labelX   = L.M + arrowCol
+    local textY    = L.titleY + BTN_TEXT_VPAD
+
+    if self.hoveredAbort then
+        self:drawText("<", L.M, textY, color.r, color.g, color.b, color.a, UIFont.Medium)
+    end
+    self:drawText(label, labelX, textY, color.r, color.g, color.b, color.a, UIFont.Medium)
+
+    self.abortButtonActualWidth  = arrowCol + labelW + BTN_HIT_PAD
+    self.abortButtonActualHeight = tm:getFontHeight(UIFont.Medium) + BTN_TEXT_VPAD * 2
+end
+
+-- Handler-Name + Portrait-Platzhalter (Asset kommt später).
+function WHO_TerminalUI:renderBriefingPortrait(quest)
+    local L  = self:getBriefingLayout()
+    local tm = getTextManager()
+
+    self:drawText(quest.handler or "COMMAND", L.portraitX, L.handlerY,
+        COLOR_TEXT_BRIGHT.r, COLOR_TEXT_BRIGHT.g, COLOR_TEXT_BRIGHT.b, COLOR_TEXT_BRIGHT.a, UIFont.Medium)
+
+    local px, py, ps = L.portraitX, L.portraitY, L.portraitSize
+    self:drawRectBorder(px, py, ps, ps,
+        COLOR_BORDER.a, COLOR_BORDER.r, COLOR_BORDER.g, COLOR_BORDER.b)
+
+    local ph  = "[ PORTRAIT ]"
+    local phW = tm:MeasureStringX(UIFont.Small, ph)
+    local phH = tm:getFontHeight(UIFont.Small)
+    self:drawText(ph, px + math.floor((ps - phW) / 2), py + math.floor((ps - phH) / 2),
+        COLOR_TEXT_DIM.r, COLOR_TEXT_DIM.g, COLOR_TEXT_DIM.b, COLOR_TEXT_DIM.a, UIFont.Small)
+end
+
+-- Typewriter-Beat: aktuelle Zeile zeichenweise, im rechten Bereich umgebrochen.
+function WHO_TerminalUI:renderBriefingText(quest)
+    local L  = self:getBriefingLayout()
+    local tm = getTextManager()
+
+    local line    = (quest.briefing and quest.briefing[self.briefingLineIndex]) or ""
+    local typed   = self:getBriefingTypedChars(#line)
+    local visible = string.sub(line, 1, typed)
+
+    local lineH = tm:getFontHeight(UIFont.Medium) + 6
+    local y     = L.rightTop
+    for _, wline in ipairs(wrapText(visible, UIFont.Medium, L.rightW)) do
+        self:drawText(wline, L.rightX, y,
+            COLOR_TEXT_BRIGHT.r, COLOR_TEXT_BRIGHT.g, COLOR_TEXT_BRIGHT.b, COLOR_TEXT_BRIGHT.a, UIFont.Medium)
+        y = y + lineH
+    end
+
+    -- Fortschritts-Marker (z.B. 2/5) dezent unter dem Text.
+    self:drawText("[ " .. self.briefingLineIndex .. " / " .. #quest.briefing .. " ]",
+        L.rightX, L.rightBottom,
+        COLOR_TEXT_GRAY.r, COLOR_TEXT_GRAY.g, COLOR_TEXT_GRAY.b, COLOR_TEXT_GRAY.a, UIFont.Small)
+
+    -- "Click to continue..." erst wenn die Zeile fertig getippt ist (sanft blinkend).
+    if typed >= #line and (getTimestampMs() % 1000) < 600 then
+        self:drawTextCentered("Click to continue...", L.footerY, COLOR_TEXT_DIM, UIFont.Small)
+    end
+end
+
+-- Objectives-Beat: OBJECTIVES + REWARD rechts (gleiches Format wie die Detail-Pane).
+function WHO_TerminalUI:renderBriefingObjectives(quest)
+    local L     = self:getBriefingLayout()
+    local lineH = 20
+    local y     = L.rightTop
+
+    self:drawText("OBJECTIVES:", L.rightX, y,
+        COLOR_TEXT_DIM.r, COLOR_TEXT_DIM.g, COLOR_TEXT_DIM.b, COLOR_TEXT_DIM.a, UIFont.Small)
+    y = y + 22
+
+    for _, req in ipairs(quest.requirements) do
+        self:drawText("  > Deliver " .. req.count .. "x " .. req.itemType, L.rightX, y,
+            COLOR_TEXT_BRIGHT.r, COLOR_TEXT_BRIGHT.g, COLOR_TEXT_BRIGHT.b, COLOR_TEXT_BRIGHT.a, UIFont.Small)
+        y = y + lineH
+    end
+
+    y = y + 15
+    self:drawText("REWARD:", L.rightX, y,
+        COLOR_TEXT_DIM.r, COLOR_TEXT_DIM.g, COLOR_TEXT_DIM.b, COLOR_TEXT_DIM.a, UIFont.Small)
+    y = y + 22
+
+    for _, rew in ipairs(quest.rewards) do
+        self:drawText("  + " .. rew.count .. "x " .. rew.itemType, L.rightX, y,
+            COLOR_TEXT_BRIGHT.r, COLOR_TEXT_BRIGHT.g, COLOR_TEXT_BRIGHT.b, COLOR_TEXT_BRIGHT.a, UIFont.Small)
+        y = y + lineH
+    end
+end
+
+-- ACCEPT MISSION / DECLINE, randlose DOS-Buttons unten (Hover hellt auf).
+function WHO_TerminalUI:renderBriefingButtons()
+    local ax, ay, _, _, dx, dy = self:getBriefingButtonRects()
+
+    local aColor = self.hoveredBriefingAccept  and COLOR_TEXT_HOVER or COLOR_TEXT_BRIGHT
+    local dColor = self.hoveredBriefingDecline and COLOR_TEXT_HOVER or COLOR_TEXT_BRIGHT
+
+    self:drawText("[ ACCEPT MISSION ]", ax, ay + BTN_TEXT_VPAD,
+        aColor.r, aColor.g, aColor.b, aColor.a, UIFont.Medium)
+    self:drawText("[ DECLINE ]", dx, dy + BTN_TEXT_VPAD,
+        dColor.r, dColor.g, dColor.b, dColor.a, UIFont.Medium)
+end
+
+-- =========================================================================
 -- INPUT HANDLING
 -- =========================================================================
 
@@ -656,11 +953,14 @@ function WHO_TerminalUI:onMouseMove(dx, dy)
     local mouseX = self:getMouseX()
     local mouseY = self:getMouseY()
 
-    self.hoveredMenuIndex  = 0
-    self.hoveredQuestIndex = 0
-    self.hoveredBack       = false
-    self.hoveredAction     = false
-    self.hoveredClose      = false
+    self.hoveredMenuIndex       = 0
+    self.hoveredQuestIndex      = 0
+    self.hoveredBack            = false
+    self.hoveredAction          = false
+    self.hoveredClose           = false
+    self.hoveredAbort           = false
+    self.hoveredBriefingAccept  = false
+    self.hoveredBriefingDecline = false
 
     if self.state == STATE_READY then
         for i, item in ipairs(MAIN_MENU_ITEMS) do
@@ -698,10 +998,25 @@ function WHO_TerminalUI:onMouseMove(dx, dy)
                 self.hoveredAction = true
             end
         end
+    elseif self.state == STATE_BRIEFING then
+        local rx, ry, rw, rh = self:getBriefingAbortRect()
+        if self:isPointInRect(mouseX, mouseY, rx, ry, rw, rh) then
+            self.hoveredAbort = true
+        end
+
+        if self.briefingShowObjectives then
+            local ax, ay, aw, ah, dx, dy, dw, dh = self:getBriefingButtonRects()
+            if self:isPointInRect(mouseX, mouseY, ax, ay, aw, ah) then
+                self.hoveredBriefingAccept = true
+            elseif self:isPointInRect(mouseX, mouseY, dx, dy, dw, dh) then
+                self.hoveredBriefingDecline = true
+            end
+        end
     end
 
-    -- CLOSE ist in READY und MISSIONS sichtbar/klickbar (nicht beim Booten).
-    if self.state ~= STATE_BOOTING then
+    -- CLOSE ist nur in READY und MISSIONS klickbar (nicht beim Booten, nicht im
+    -- Briefing — dort fängt die Codec-View Klicks selbst ab / nutzt ABORT).
+    if self.state == STATE_READY or self.state == STATE_MISSIONS_VIEW then
         local cx, cy, cw, ch = self:getCloseRect()
         if self:isPointInRect(mouseX, mouseY, cx, cy, cw, ch) then
             self.hoveredClose = true
@@ -710,8 +1025,9 @@ function WHO_TerminalUI:onMouseMove(dx, dy)
 end
 
 function WHO_TerminalUI:onMouseDown(x, y)
-    -- CLOSE zuerst prüfen (sichtbar in READY + MISSIONS, nicht beim Booten).
-    if self.state ~= STATE_BOOTING then
+    -- CLOSE nur in READY + MISSIONS prüfen. Im Briefing gibt es kein CLOSE:
+    -- Klicks treiben den Codec voran, Ausstieg läuft über ABORT/DECLINE.
+    if self.state == STATE_READY or self.state == STATE_MISSIONS_VIEW then
         local cx, cy, cw, ch = self:getCloseRect()
         if self:isPointInRect(x, y, cx, cy, cw, ch) then
             self:close()
@@ -753,7 +1069,8 @@ function WHO_TerminalUI:onMouseDown(x, y)
             if self:isPointInRect(x, y, ax, ay, aw, ah) then
                 local selected = available[self.selectedQuestIndex]
                 if selected then
-                    WHO_QuestState.acceptQuest(player, selected.id)
+                    -- Phase 3b.5: ACCEPT öffnet erst den Codec; angenommen wird im Briefing.
+                    self:enterBriefing(selected)
                 end
                 return true
             end
@@ -763,6 +1080,35 @@ function WHO_TerminalUI:onMouseDown(x, y)
                 WHO_RewardDispatcher.dispatch(player)
                 return true
             end
+        end
+    elseif self.state == STATE_BRIEFING then
+        -- ABORT immer zuerst prüfen: Escape-Hatch in beiden Beats.
+        local rx, ry, rw, rh = self:getBriefingAbortRect()
+        if self:isPointInRect(x, y, rx, ry, rw, rh) then
+            print("[WHO] Briefing aborted by operator")
+            self:exitBriefing()
+            return true
+        end
+
+        if self.briefingShowObjectives then
+            local ax, ay, aw, ah, dx, dy, dw, dh = self:getBriefingButtonRects()
+            if self:isPointInRect(x, y, ax, ay, aw, ah) then
+                local player = self.player or getPlayer()
+                if self.briefingQuest then
+                    WHO_QuestState.acceptQuest(player, self.briefingQuest.id)
+                end
+                self:exitBriefing()   -- zurück in MISSIONS_VIEW -> rendert jetzt ACTIVE
+                return true
+            elseif self:isPointInRect(x, y, dx, dy, dw, dh) then
+                print("[WHO] Mission declined at briefing")
+                self:exitBriefing()
+                return true
+            end
+            return true   -- Klicks im Objectives-Beat konsumieren (kein Advance)
+        else
+            -- Typewriter-Beat: jeder Klick rückt vor / vervollständigt die Zeile.
+            self:advanceBriefing()
+            return true
         end
     end
 

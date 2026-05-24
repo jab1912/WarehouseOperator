@@ -190,6 +190,31 @@ nicht mehr. In-Game verifiziert @ 4K (1920x1200-Fenster).
 
 ---
 
+### Phase 3b.5: Codec-Briefing-View (umgesetzt)
+
+Eigener Top-Level-State `STATE_BRIEFING` neben BOOTING/READY/MISSIONS_VIEW.
+
+- [x] ACCEPT in der Missions-IDLE-View nimmt die Quest nicht mehr direkt an,
+  sondern startet den Codec (`enterBriefing`). Angenommen wird erst am Ende.
+- [x] Typewriter-Mechanik: eine Briefing-Zeile nach der anderen zeichenweise,
+  `getTimestampMs()`-getrieben (gleicher Ansatz wie die Boot-Sequenz),
+  Geschwindigkeit über `TYPE_SPEED_MS` (35 ms/Zeichen). Klick während des
+  Tippens vervollständigt die Zeile sofort, Klick bei fertiger Zeile rückt vor.
+- [x] Layout im Phase-3c-Anchor-System: Header `// INCOMING TRANSMISSION`,
+  links Handler-Name + Portrait-Platzhalter (`[ PORTRAIT ]`, Asset folgt),
+  rechts der Text-Bereich (Word-Wrap), unten `Click to continue...`-Hinweis.
+- [x] Objectives-Beat: rechts OBJECTIVES + REWARD (gleiches Format wie die
+  Detail-Pane), unten randlose DOS-Buttons `[ ACCEPT MISSION ]` / `[ DECLINE ]`.
+  ACCEPT ruft `WHO_QuestState.acceptQuest` und kehrt in MISSIONS_VIEW zurück
+  (zeigt dann ACTIVE), DECLINE kehrt ohne Annahme zurück.
+- [x] `< ABORT`-Button oben links als Escape-Hatch (stilgleich zum BACK-Button)
+  — bricht das Briefing in beiden Beats ab, falls die falsche Quest gewählt wurde.
+
+Schließt den Phase-3b-Known-Issue "Briefing in eigene Codec-View auslagern".
+Build-Marker: `WHO_Config.MOD.VERSION` 0.0.3 → 0.0.4.
+
+---
+
 ### Phase 3c: Polish & Atmosphäre (1-2 Sessions)
 
 - [ ] Tipp-Animationen für Text-Output

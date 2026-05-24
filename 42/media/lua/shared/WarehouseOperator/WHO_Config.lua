@@ -37,7 +37,7 @@ WHO_Config.QUEST_ITEM_SPAWNS = {
 
 WHO_Config.MOD = {
     ID = "WarehouseOperator",
-    VERSION = "0.0.3",
+    VERSION = "0.0.4",
     BUILD_TARGET = "42.18.0",
 }
 
