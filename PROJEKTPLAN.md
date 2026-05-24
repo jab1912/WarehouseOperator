@@ -261,62 +261,75 @@ erstes Mal in diesem Mod dass wir das machen.
 
 ---
 
-### Phase 5: Quest-Pool & Progression (3-5 Sessions)
+### Phase 5 — Phase-1-Gameplay-Loop ("Probation")
 
-- [ ] 10-15 handgeschriebene Quests in verschiedenen Tiers
-- [ ] **Tier-System:**
-  - T1: Food, Meds, Basic Tools (Anfänger, leicht zu finden)
-  - T2: Ammo, bessere Werkzeuge, Mechanik-Teile (Mid-Game)
-  - T3: Waffen, seltene Items, militärische Ausrüstung (End-Game, gefährliche Locations)
-- [ ] Reward-Pools pro Tier, mit zufälliger Auswahl aus dem Pool
-- [ ] Quest-Auswahl-Logik: nach Abschluss von X Quests in Tier N werden Tier-N+1-Quests freigeschaltet
-- [ ] Optional: 2-3 Quests pro Tag verfügbar, dann Cooldown ("Convoy arrives tomorrow")
+#### Konzept
 
-**Deliverable:** Spielbare Progression über mehrere Spiel-Tage, sichtbarer Schwierigkeitsanstieg.
+Fünf T1-Missionen im Lauf-Radius des Warehouse, mit denen der Operator seinen
+Wert beweist. Die finale Mission triggert den Vehicle-Drop und schaltet das
+City-Expedition-Gameplay (Phase 6+) frei.
 
+> Ersetzt die früheren Abschnitte "Phase 5 Quest-Pool", "Phase 5b Bulk Exchange"
+> und "Phase 5c Laundry". Bulk-Exchange ist jetzt in **5b**, Laundry in **5d**
+> aufgegangen; die alten Tier-Reward-Pool-Notizen liegen in der Git-History.
 
+#### Sub-Phasen (sequenziell, "eins nach dem anderen")
 
-### Phase 5b: Bulk Exchange System (NEU)
+**5a — Quest 1 "Gas Station / Refueling Point"**
+- Echte Location: Tankstelle ~2 Minuten südlich des Warehouse (exakte Koordinaten in-game verifizieren)
+- Quest: Hostiles ausräumen, Pump Key aus dem Manager-Büro bergen
+- Reward (sofort): Standard-Mun + Bandagen
+- Reward (System-Unlock): SUPPLY-ORDER-Menü im Terminal (gebaut in 5b)
+- Pre-5b-State: SUPPLY ORDER zeigt "CLASSIFIED"-Platzhalter, ausgegraut
+- Pump Key: Custom-Item `Base.WHO_PumpKey` (Vanilla-Key-Icon als Platzhalter) — erstes `scripts/`-Item des Mods
+- Briefing-Tone: COMMAND knapp, "prove you can walk"
 
-**Konzept:** Operator gibt gewaschene Zombie-Klamotten am Warehouse ab und 
-erhält "Logistics Credits" zum Eintauschen gegen Munition / 
-Verbrauchsmaterial im Terminal-Shop. Löst das Mun-Nachschub-Problem ohne
-trivial zu werden (siehe Phase 5c für die Constraint-Layer).
+**5b — Shop System Foundation**
+- Neuer Terminal-State `STATE_SUPPLY_ORDER`
+- Item-Katalog-Datenmodell (`WHO_ShopItems.lua`)
+- Currency-Tracking in ModData (Platzhalter bis 5d: ggf. Starter-Voucher über N Credits)
+- Order-Persistenz über Save/Load
+- Daily-Delivery-Event: Truck spawnt um 10:00 Spielzeit, parkt, Container füllt sich mit bestellten Items, Truck despawnt
+- Codec-Notification bei Lieferung
+- UI: Katalog-Browsing, aktuelle Balance, offene Order, Delivery-Countdown
+- Liest das `supply_order_unlocked`-ModData-Flag aus Quest 1 (5a)
 
-- [ ] Bulk-Container im Warehouse (eigene Kiste, separat von Extraction)
-- [ ] Item-Wertigkeit definieren (T-Shirts = 1 credit, Hazmat = 10, etc.)
-- [ ] Credit-Counter im Player-ModData
-- [ ] Terminal-State BULK_VIEW: Übersicht "X Items / Y Credits"
-- [ ] Terminal-State SHOP_VIEW: Shop-Liste mit Preisen
-- [ ] One-Click Bulk-Exchange (alle Items aus Container → Credits)
-- [ ] One-Click Buy-Action (Items werden in Bulk-Container gelegt)
+**5c — Quests 2-5 mit Shop-Integration + Vehicle Drop**
+- Q2: Medical (Klinik / Pharmacy) — bestehenden Platzhalter refactoren
+- Q3: Tools (Farm / Werkstatt)
+- Q4: Fortification (Baumarkt / Baustelle)
+- Q5: "Establishing Trust" — finale Mission, triggert den Vehicle Drop
+- Tier-Tracking: WHO_QuestState weiß, welche T1-Quests COMPLETE sind
+- Vehicle-Spawning: `WHO_VehicleDispatcher.spawnRewardVehicle()` an der südlichen Zufahrtsstraße
+- Codec von COMMAND: "Welcome to the team, Operator"
+- Vehicle-Typ TBD bei Implementation (Pickup vs Truck)
+- Vehicle-Verlust = WHO ersetzt nach 3 Penalty-Missionen
 
-**Lore:** WHO recycles biohazard-contaminated material. Operators are
-compensated via logistics credits redeemable for field equipment.
+**5d — Laundered Garments Currency**
+- Platzhalter-Currency durch echte Garment-basierte Ökonomie ersetzen
+- Waschmaschinen-Mechanik (Custom-Item oder Vanilla-Trigger)
+- Wasch-Timer, Wasser-/Strom-Anforderungen
+- Conversion-Rate: Garments → Credits
+- Wash-UI im Terminal (neuer State oder in Supply Order integriert)
 
-**Balance-Notes:**
-- Bulk-Refill ist für Mun und Verbrauchsmaterial gedacht
-- Tier-3-Waffen + seltene Items bleiben mission-exclusive
-- Wechselkurs muss experimentell ausbalanciert werden
+#### Architektur-Prinzip: Incremental Playability
 
-**Aufwand:** ~2-3 Sessions. Erweitert Terminal-UI um 2 neue States.
+Jede Sub-Phase liefert einen funktionalen, testbaren Zustand. Keine halbfertigen
+Features, die den Mod zwischen Phasen kaputtmachen. Platzhalter ("CLASSIFIED",
+Starter-Voucher) überbrücken Lücken, bis die nächste Sub-Phase sie auffüllt.
 
-### Phase 5c: Laundry / Detergent System (NEU)
+#### Out of Scope für Phase 5
+- Tier-2/3+-Quests (City-Missionen) → Phase 6
+- Vehicle-Damage/Replacement-Logik → Phase 6
+- Mehrere Handler (DOC, OVERSEER, etc.) → Phase 7
+- Stealth/Sneak-Mechanik für die Rail-Yard-Route → Phase 7
 
-**Konzept:** Klamotten müssen vor dem Tausch gewaschen werden. Eliminiert
-trivialen Spam-Trade und integriert Mission-Rewards mit Bulk-Loop.
-
-- [ ] Waschmaschine wird durch WHO_Q002 als Mission-Reward geliefert/freigeschaltet
-- [ ] Container-Pipeline: DIRTY → washing machine + Detergent → CLEAN
-- [ ] TimedAction für Wäsche-Zyklus (~30 Spielminuten)
-- [ ] Detergent als Verbrauchsmaterial (looten oder als Quest-Reward)
-- [ ] Nur "clean" Klamotten zählen als Bulk im Terminal-Tausch
-- [ ] Optional Sandbox-Option: Bulk + Laundry abschaltbar
-
-**Side-Effects:**
-- Macht Detergent-Lieferungen zu sinnvollen Tier-1-Quests
-- Strom-Knappheit (Late-Game) wird zur Constraint
-- Sehr Tarkov-Hideout-mäßiges Investment-Feeling
+#### Bekannte offene Entscheidungen
+- Vehicle-Typ (Pickup vs Truck) — Entscheidung bei 5c-Implementation
+- Garment-Conversion-Rate — Balancing bei 5d
+- Q5-spezifische Items — Verfeinerung bei 5c
+- ~~Pump Key Custom-Item vs. Vanilla~~ → **RESOLVED:** Custom-Item `Base.WHO_PumpKey`
+  (Vanilla-Key-Icon-Platzhalter), erstellt im WHO_Q001-Refactor
 
 ---
 
