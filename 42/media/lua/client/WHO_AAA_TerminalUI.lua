@@ -89,6 +89,29 @@ local function wrapText(text, font, maxWidth)
     return lines
 end
 
+-- Resolve a player-facing display name from an item full-type string
+-- (e.g. "Base.Bullets9mm" -> "9mm Rounds"). Falls back to the raw type id if the
+-- script item is unknown or the lookup fails, so the UI always shows *something*.
+-- Cached per type (display names are static for a session).
+local _displayNameCache = {}
+local function itemDisplayName(fullType)
+    if not fullType then return "?" end
+    local cached = _displayNameCache[fullType]
+    if cached ~= nil then return cached end
+
+    local name = fullType   -- fallback: raw type id (unknown / modded / lookup error)
+    local ok, dn = pcall(function()
+        local scriptItem = getScriptManager():getItem(fullType)
+        return scriptItem and scriptItem:getDisplayName() or nil
+    end)
+    if ok and dn and dn ~= "" then
+        name = dn
+    end
+
+    _displayNameCache[fullType] = name
+    return name
+end
+
 -- =========================================================================
 -- ASSETS
 -- =========================================================================
@@ -682,7 +705,7 @@ function WHO_TerminalUI:renderQuestDetailPane(quest)
     y = y + 22
 
     for _, req in ipairs(quest.requirements) do
-        local line = "  > Deliver " .. req.count .. "x " .. req.itemType
+        local line = "  > Deliver " .. req.count .. "x " .. itemDisplayName(req.itemType)
         self:drawText(line, detailX, y,
             COLOR_TEXT_BRIGHT.r, COLOR_TEXT_BRIGHT.g, COLOR_TEXT_BRIGHT.b, COLOR_TEXT_BRIGHT.a, UIFont.Small)
         y = y + lineH
@@ -694,7 +717,7 @@ function WHO_TerminalUI:renderQuestDetailPane(quest)
     y = y + 22
 
     for _, rew in ipairs(quest.rewards) do
-        local line = "  + " .. rew.count .. "x " .. rew.itemType
+        local line = "  + " .. rew.count .. "x " .. itemDisplayName(rew.itemType)
         self:drawText(line, detailX, y,
             COLOR_TEXT_BRIGHT.r, COLOR_TEXT_BRIGHT.g, COLOR_TEXT_BRIGHT.b, COLOR_TEXT_BRIGHT.a, UIFont.Small)
         y = y + lineH
@@ -723,7 +746,7 @@ function WHO_TerminalUI:renderActiveMissionView(player)
     y = y + 28
 
     for _, req in ipairs(quest.requirements) do
-        local line = "  > Deliver " .. req.count .. "x " .. req.itemType
+        local line = "  > Deliver " .. req.count .. "x " .. itemDisplayName(req.itemType)
         self:drawText(line, indentX, y,
             COLOR_TEXT_BRIGHT.r, COLOR_TEXT_BRIGHT.g, COLOR_TEXT_BRIGHT.b, COLOR_TEXT_BRIGHT.a, UIFont.Small)
         y = y + 22
@@ -758,7 +781,7 @@ function WHO_TerminalUI:renderCompletedMissionView(player)
     y = y + 28
 
     for _, rew in ipairs(quest.rewards) do
-        local line = "  + " .. rew.count .. "x " .. rew.itemType
+        local line = "  + " .. rew.count .. "x " .. itemDisplayName(rew.itemType)
         self:drawText(line, indentX, y,
             COLOR_TEXT_BRIGHT.r, COLOR_TEXT_BRIGHT.g, COLOR_TEXT_BRIGHT.b, COLOR_TEXT_BRIGHT.a, UIFont.Small)
         y = y + 22
@@ -911,7 +934,7 @@ function WHO_TerminalUI:renderBriefingObjectives(quest)
     y = y + 22
 
     for _, req in ipairs(quest.requirements) do
-        self:drawText("  > Deliver " .. req.count .. "x " .. req.itemType, L.rightX, y,
+        self:drawText("  > Deliver " .. req.count .. "x " .. itemDisplayName(req.itemType), L.rightX, y,
             COLOR_TEXT_BRIGHT.r, COLOR_TEXT_BRIGHT.g, COLOR_TEXT_BRIGHT.b, COLOR_TEXT_BRIGHT.a, UIFont.Small)
         y = y + lineH
     end
@@ -922,7 +945,7 @@ function WHO_TerminalUI:renderBriefingObjectives(quest)
     y = y + 22
 
     for _, rew in ipairs(quest.rewards) do
-        self:drawText("  + " .. rew.count .. "x " .. rew.itemType, L.rightX, y,
+        self:drawText("  + " .. rew.count .. "x " .. itemDisplayName(rew.itemType), L.rightX, y,
             COLOR_TEXT_BRIGHT.r, COLOR_TEXT_BRIGHT.g, COLOR_TEXT_BRIGHT.b, COLOR_TEXT_BRIGHT.a, UIFont.Small)
         y = y + lineH
     end
