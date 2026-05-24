@@ -25,8 +25,12 @@ WHO_Config.WAREHOUSE = {
 -- Pro Quest-ID eine Koordinate.
 
 WHO_Config.QUEST_ITEM_SPAWNS = {
-    -- WHO_Q001: First Delivery - Kiste im Lagerbereich
-    WHO_Q001 = { x = 12622, y = 4709, z = 0 },
+    -- WHO_Q001: "Prime the Pump" - Pump Key in der Tankstelle südlich/südwestlich
+    -- des Warehouse.
+    -- TODO Phase 5a: UNVERIFIZIERTER Platzhalter! Exakte Tankstellen-Koordinaten
+    -- in-game per Tile-Report bestimmen (~2 Min südlich der SPAWN_POS, südwestlich).
+    -- Bis dahin landet der Key per Boden-Fallback an dieser Näherungs-Position.
+    WHO_Q001 = { x = 12595, y = 4780, z = 0 },
     -- WHO_Q002: Medical Supplies - leicht versetzt im selben Lagerbereich
     WHO_Q002 = { x = 12623, y = 4710, z = 0 },
 }

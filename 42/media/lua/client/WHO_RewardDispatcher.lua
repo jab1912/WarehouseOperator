@@ -115,6 +115,14 @@ function WHO_RewardDispatcher.dispatch(player)
     local rewardCount = addRewardsToContainer(container, quest.rewards)
     print("[WHO]   Added " .. rewardCount .. " reward items total")
 
+    -- Schritt 2b: Non-Item-Rewards (System-Unlocks) als ModData-Flags setzen
+    if quest.rewardFlags then
+        for _, flag in ipairs(quest.rewardFlags) do
+            WHO_QuestState.setFlag(player, flag)
+            print("[WHO]   Unlocked: " .. flag)
+        end
+    end
+
     -- Schritt 3: Quest finalisieren (Status zurück auf IDLE)
     WHO_QuestState.finishQuest(player)
 

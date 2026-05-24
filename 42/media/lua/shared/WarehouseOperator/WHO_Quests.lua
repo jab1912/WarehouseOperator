@@ -18,29 +18,37 @@ local WHO_Quests = {}
 --   description  : Kurz-Beschreibung (fallback wenn briefing leer)
 --   requirements : Liste: { { itemType="Base.X", count=N }, ... }
 --   rewards      : Liste: { { itemType="Base.X", count=N }, ... }
+--   rewardFlags  : optionale Liste von ModData-Flag-Namen, die beim Extraction-
+--                  Confirm gesetzt werden (System-Unlocks). Vom WHO_RewardDispatcher
+--                  via WHO_QuestState.setFlag gesetzt. Optional.
 --
 -- =========================================================================
 
 WHO_Quests.list = {
     {
         id = "WHO_Q001",
-        name = "First Delivery",
+        name = "Prime the Pump",
         tier = 1,
         handler = "COMMAND",
         briefing = {
             "Operator, this is COMMAND.",
-            "Logistics personnel report critical food shortage at the depot.",
-            "Acquire five units of canned beans from any source.",
-            "Deliver them to the extraction crate in our facility.",
-            "Standard compensation will be provided. COMMAND out.",
+            "Before our logistics network can support you, we need a refueling point.",
+            "Gas station, two clicks south. Clear it, secure the pump key, bring it back.",
+            "Once that pump runs, our trucks can resupply you daily.",
+            "Don't get bit. COMMAND out.",
         },
-        description = "Acquire 5x canned beans and deliver to the extraction crate.",
+        description = "Clear the gas station south of the warehouse and recover the fuel pump key.",
         requirements = {
-            { itemType = "Base.TinnedBeans", count = 5 },
+            { itemType = "Base.WHO_PumpKey", count = 1 },
         },
         rewards = {
             { itemType = "Base.Bullets9mm", count = 30 },
             { itemType = "Base.Bandage",    count = 3 },
+        },
+        -- System-Unlock: setzt das Flag beim Extraction-Confirm; das SUPPLY-ORDER-
+        -- Menü (Phase 5b) liest es aus, um sich freizuschalten.
+        rewardFlags = {
+            "supply_order_unlocked",
         },
     },
     {

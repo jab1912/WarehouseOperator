@@ -21,6 +21,7 @@ local function ensureModData(player)
             currentStatus  = WHO_QuestState.STATUS.IDLE,
             completedCount = 0,
             operatorNumber = 1,
+            flags          = {},
         }
         print("[WHO] ModData initialized for player")
     end
@@ -106,6 +107,25 @@ function WHO_QuestState.finishQuest(player)
 
     print("[WHO] Quest finished: " .. questId .. " (total completed: " .. state.completedCount .. ")")
     return true
+end
+
+-- =========================================================================
+-- FLAGS (System-Unlocks, persistiert in ModData)
+-- =========================================================================
+-- Quest-Rewards können neben Items auch ModData-Flags setzen (siehe
+-- quest.rewardFlags + WHO_RewardDispatcher). Phase 5b liest z.B.
+-- "supply_order_unlocked", um das SUPPLY-ORDER-Menü freizuschalten.
+
+function WHO_QuestState.setFlag(player, flag)
+    local state = ensureModData(player)
+    state.flags = state.flags or {}   -- Migration: alte Saves ohne flags-Tabelle
+    state.flags[flag] = true
+    print("[WHO] Flag set: " .. flag)
+end
+
+function WHO_QuestState.hasFlag(player, flag)
+    local state = ensureModData(player)
+    return state.flags ~= nil and state.flags[flag] == true
 end
 
 return WHO_QuestState

@@ -1,0 +1,23 @@
+/*
+ * Warehouse Operator - Custom Item Definitions
+ *
+ * Erstes scripts/-Item des Mods (Phase 5a). Custom-Items liegen im PZ-Modul
+ * `Base` mit dem projektweiten `WHO_`-Prefix -> Full-Type `Base.WHO_<Name>`,
+ * konsistent mit den Vanilla-Referenzen in WHO_Quests (Base.Bandage, ...).
+ *
+ * Icons sind vorerst Vanilla-Platzhalter (Reskin spaeter, siehe PROJEKTPLAN
+ * Phase 5a). PZ laedt media/scripts automatisch - keine Lua-Registrierung noetig.
+ */
+module Base
+{
+    /* Quest-Token fuer WHO_Q001 "Prime the Pump": aus der Tankstelle bergen
+       und zur Extraction-Kiste bringen. Type=Normal, oeffnet keine Tueren. */
+    item WHO_PumpKey
+    {
+        DisplayCategory = Misc,
+        Type            = Normal,
+        DisplayName     = Fuel Pump Key,
+        Icon            = Key2,
+        Weight          = 0.1,
+    }
+}
