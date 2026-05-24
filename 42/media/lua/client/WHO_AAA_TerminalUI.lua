@@ -473,10 +473,15 @@ function WHO_TerminalUI:renderLogo(scaledWidth, scaledHeight, yOffset)
     end
 end
 
+-- Thin wrapper around drawText that takes a {r,g,b,a} color table instead of four
+-- separate channels. Keeps call sites short (esp. the upcoming Phase 5b shop UI).
+function WHO_TerminalUI:drawTextColored(text, x, y, color, font)
+    self:drawText(text, x, y, color.r, color.g, color.b, color.a, font)
+end
+
 function WHO_TerminalUI:drawTextCentered(text, y, color, font)
     local width = getTextManager():MeasureStringX(font, text)
-    self:drawText(text, (self.width / 2) - (width / 2), y,
-        color.r, color.g, color.b, color.a, font)
+    self:drawTextColored(text, (self.width / 2) - (width / 2), y, color, font)
 end
 
 -- Borderless DOS menu-text button: a label with a hover-only directional arrow,
@@ -512,9 +517,9 @@ function WHO_TerminalUI:drawMenuTextButton(label, x, y, hovered, align, arrowCha
 
     if hovered and enabled then
         local arrowX = (align == "center") and (labelX - arrowCol) or x
-        self:drawText(arrowChar, arrowX, textY, color.r, color.g, color.b, color.a, font)
+        self:drawTextColored(arrowChar, arrowX, textY, color, font)
     end
-    self:drawText(label, labelX, textY, color.r, color.g, color.b, color.a, font)
+    self:drawTextColored(label, labelX, textY, color, font)
 
     return hitW, tm:getFontHeight(font) + BTN_TEXT_VPAD * 2
 end
@@ -524,8 +529,8 @@ end
 -- returns the y below the block.
 function WHO_TerminalUI:renderObjectiveLines(quest, x, y, lineH)
     for _, req in ipairs(quest.requirements) do
-        self:drawText("  > Deliver " .. req.count .. "x " .. itemDisplayName(req.itemType), x, y,
-            COLOR_TEXT_BRIGHT.r, COLOR_TEXT_BRIGHT.g, COLOR_TEXT_BRIGHT.b, COLOR_TEXT_BRIGHT.a, UIFont.Small)
+        self:drawTextColored("  > Deliver " .. req.count .. "x " .. itemDisplayName(req.itemType),
+            x, y, COLOR_TEXT_BRIGHT, UIFont.Small)
         y = y + lineH
     end
     return y
@@ -533,8 +538,8 @@ end
 
 function WHO_TerminalUI:renderRewardLines(quest, x, y, lineH)
     for _, rew in ipairs(quest.rewards) do
-        self:drawText("  + " .. rew.count .. "x " .. itemDisplayName(rew.itemType), x, y,
-            COLOR_TEXT_BRIGHT.r, COLOR_TEXT_BRIGHT.g, COLOR_TEXT_BRIGHT.b, COLOR_TEXT_BRIGHT.a, UIFont.Small)
+        self:drawTextColored("  + " .. rew.count .. "x " .. itemDisplayName(rew.itemType),
+            x, y, COLOR_TEXT_BRIGHT, UIFont.Small)
         y = y + lineH
     end
     return y
