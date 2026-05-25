@@ -45,12 +45,6 @@ function WHO_QuestState.getCurrentStatus(player)
     return state.currentStatus
 end
 
-function WHO_QuestState.canAcceptQuest(player)
-    local state = ensureModData(player)
-    if not state then return false end
-    return state.currentStatus == WHO_QuestState.STATUS.IDLE
-end
-
 function WHO_QuestState.acceptQuest(player, questId)
     local state = ensureModData(player)
     if not state then return false end

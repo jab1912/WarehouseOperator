@@ -172,7 +172,6 @@ function WHO_TerminalUI:create()
     -- Keine ISButton-Children mehr: BACK/ACCEPT/CONFIRM/CLOSE sind randlose
     -- Menü-Text-Buttons, manuell gezeichnet und per Hit-Test angesteuert.
     self.hoveredMenuIndex   = 0
-    self.hoveredQuestIndex  = 0
     self.hoveredBack        = false
     self.hoveredAction      = false
     self.hoveredClose       = false
@@ -964,7 +963,6 @@ function WHO_TerminalUI:onMouseMove(dx, dy)
     local mouseY = self:getMouseY()
 
     self.hoveredMenuIndex       = 0
-    self.hoveredQuestIndex      = 0
     self.hoveredBack            = false
     self.hoveredAction          = false
     self.hoveredClose           = false
@@ -990,17 +988,6 @@ function WHO_TerminalUI:onMouseMove(dx, dy)
 
         local player = self.player or getPlayer()
         local status = WHO_QuestState.getCurrentStatus(player)
-
-        if status == WHO_QuestState.STATUS.IDLE then
-            local available = WHO_Quests.getAvailable()
-            for i, _ in ipairs(available) do
-                local ix, iy, iw, ih = self:getQuestListItemRect(i)
-                if self:isPointInRect(mouseX, mouseY, ix, iy, iw, ih) then
-                    self.hoveredQuestIndex = i
-                    break
-                end
-            end
-        end
 
         if status == WHO_QuestState.STATUS.IDLE or status == WHO_QuestState.STATUS.COMPLETE then
             local ax, ay, aw, ah = self:getActionButtonRect()
