@@ -14,6 +14,21 @@ print("======================================")
 Events.OnGameStart.Add(function()
     print("[WHO] OnGameStart fired - player is now in-game")
 
+    -- TEMP DIAGNOSTIC (remove after test): is our custom item registered?
+    -- subject = Base.WHO_PumpKey (NIL => 42/media/scripts never scanned by
+    -- ScriptManager); control = Base.TinnedBeans (vanilla, must be REGISTERED to
+    -- prove the probe itself works). Placed here because HelloWorld is proven to
+    -- load and OnGameStart is proven to fire (the OnGameBoot probe printed nothing).
+    local sm = getScriptManager()
+    if sm then
+        local pk = sm:getItem("Base.WHO_PumpKey")
+        local tb = sm:getItem("Base.TinnedBeans")
+        print("[WHO] ScriptProbe: Base.WHO_PumpKey  -> " .. (pk ~= nil and "REGISTERED" or "NIL (not loaded)"))
+        print("[WHO] ScriptProbe: Base.TinnedBeans  -> " .. (tb ~= nil and "REGISTERED" or "NIL"))
+    else
+        print("[WHO] ScriptProbe: getScriptManager() == nil at OnGameStart")
+    end
+
     -- Hol dir das Spieler-Objekt
     -- getPlayer() ist eine freie Funktion (kein Punkt/Doppelpunkt davor)
     -- Sie gibt das IsoPlayer-Objekt zurück
