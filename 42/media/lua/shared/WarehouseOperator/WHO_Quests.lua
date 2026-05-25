@@ -33,7 +33,7 @@ WHO_Quests.list = {
         briefing = {
             "Operator, this is COMMAND.",
             "Before our logistics network can support you, we need a refueling point.",
-            "Gas station, two clicks south. Clear it, secure the pump key, bring it back.",
+            "Gas station, two clicks south. Clear it. Pump key's under the register. Bring it back.",
             "Once that pump runs, our trucks can resupply you daily.",
             "Don't get bit. COMMAND out.",
         },
