@@ -13,7 +13,11 @@ report for triage.
 
 **Triage — 2026-05-24 (Bucket 1 done):** display names (`7ca864c`), UI button +
 line-block DRY (`0017f47`), and `DEBUG.ENABLED` default `false` (`e28ed57`) are
-resolved — see the ✅ annotations below. All other findings remain open.
+resolved — see the ✅ annotations below.
+
+**Triage — 2026-05-25 (Bucket 2):** `container:AddItem` return now checked with a
+floor-drop fallback (`90b608d`) — see the ✅ annotation under WHO_ItemSpawner.lua.
+All other findings remain open.
 
 ## Overall verdict
 
@@ -103,6 +107,12 @@ the 0-indexed Java list). Two trivial items plus one robustness gap:
   invisibly. Ties into the existing PROJEKTPLAN "scan nearby tiles for container"
   TODO. *Fix:* check the `AddItem` result; on failure fall back to the floor drop.
   *Effort:* low–medium.
+  > **✅ RESOLVED (`90b608d`):** `spawnAt` and `spawnInContainerType` now compare
+  > `getItems():size()` before vs after `AddItem` (and log the `AddItem` return); on
+  > no increase they log the failure and fall through to the floor drop instead of
+  > reporting false success. Added `describeContainer()` and an enumerate-all-matches
+  > log for diagnosis. (The related "scan nearby tiles" TODO was already covered by
+  > `spawnInContainerType`'s radius search and removed separately.)
 
 - **NITPICK — unused loop variable `n` (lines 51 and 58).** Also flagged by LuaLS.
   *Fix:* `for _ = 1, count do`. *Effort:* trivial.
