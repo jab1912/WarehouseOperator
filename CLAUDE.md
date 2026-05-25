@@ -73,8 +73,25 @@ cleanly (0 syntax errors).
 
 ## Layout & module loading (the non-obvious part)
 
-**Dual `mod.info`** — `mod.info` at root is the B41 marker; `common/mod.info` is
-the B42 marker. All actual code lives under `42/media/` (the Build-42 path).
+**Triple `mod.info`** — three copies, each with a distinct role. All actual code
+lives under `42/media/` (the Build-42 path):
+- **`mod.info` (root)** — B41-style marker; makes the mod recognizable to the PZ
+  launcher / mod list.
+- **`common/mod.info`** — legacy/duplicate, kept for compatibility (the `common/`
+  folder is otherwise empty).
+- **`42/mod.info`** — the canonical Build-42 version-folder root. **REQUIRED for
+  `ScriptManager` to scan `42/media/scripts/`.** Without it the Lua loader still
+  finds `42/media/lua` (so the mod *appears* to work), but item/recipe scripts are
+  silently never loaded.
+
+⚠️ **Dev-lesson — a custom item needs a script file AND `42/mod.info`.** If
+`42/mod.info` is missing, `42/` isn't recognized as a B42 mod root by
+`ScriptManager` (even though the Lua loader finds `42/media/lua` somehow), so the
+item type never registers. Symptoms: `getScriptManager():getItem(type)` returns
+nil, `container:AddItem(type)` silently returns nil with no error, and
+`square:AddWorldInventoryItem(type, …)` throws `NullPointerException` at
+`InventoryItemFactory` (`setAlcoholPower … item is null`). The script file can look
+perfectly correct — the problem is structural.
 
 PZ auto-loads files differently depending on folder:
 
