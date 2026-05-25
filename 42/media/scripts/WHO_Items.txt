@@ -4,9 +4,11 @@
  * WHO_PumpKey: quest token for WHO_Q001 "Prime the Pump" - recover from the gas
  * station, deliver to the extraction crate.
  *
- * Templated VERBATIM from the vanilla B42 key (media/scripts/generated/items/
- * key.txt -> item CarKey), changing only the item name and adding DisplayName
- * (vanilla keys get their name from translation files we don't ship).
+ * Templated from the vanilla B42 key (media/scripts/generated/items/key.txt ->
+ * item CarKey): item name changed, DisplayName added (vanilla keys use translation
+ * files we don't ship), and two inapplicable tags dropped - base:carkey (wrong for
+ * a pump key, could touch vehicle systems) and base:morewhennozombies (a loot-
+ * rarity modifier, moot since we hand-spawn the key via the lazy-spawn queue).
  *
  * WHY: the previous hand-written minimal definition used the legacy `Type = Normal`.
  * It PARSED and registered (getScriptManager():getItem returned it), but B42's
@@ -26,7 +28,7 @@ module Base
         Icon             = CarKey,
         MetalValue       = 7.0,
         WorldStaticModel = CarKeys,
-        Tags             = base:carkey;base:morewhennozombies;base:fitswallet,
+        Tags             = base:fitswallet,
         OriginX          = 0,
         OriginY          = 0,
         originZ          = 0,
