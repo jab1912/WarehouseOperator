@@ -471,10 +471,6 @@ Vehicle-abhängiger Logistik und routenabhängigem Risiko.
   Tile geladen ist (Spieler läuft/teleportiert hin) und nimmt ihn dann aus der
   Queue. Siehe `WHO_QuestState` (pendingSpawns) + `WHO_SpawnQueue`.
 
-- **TODO Phase 5+:** Spawner um "scan nearby tiles for container" erweitern
-  (3x3 oder 5x5 Raster um das Ziel-Tile checken). Macht Quest-Design robuster
-  bei Off-by-one-Tile-Fehlern.
-
 - **Sporadische Startup-Crashes bei PZ 42.18 Unstable**
   Symptom: schwarzer Bildschirm beim Start, dann CTD. Beim 2. Versuch läuft's.
   Ursache: AMD-OpenGL/Display-Init-Race-Condition (verifiziert via DebugLog —
