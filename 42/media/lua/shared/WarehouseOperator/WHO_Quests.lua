@@ -12,9 +12,9 @@ local WHO_Quests = {}
 --   id           : eindeutiger String, beginnt mit "WHO_Q" + 3-stellige Nummer
 --   name         : Anzeigename
 --   tier         : 1=easy, 2=medium, 3=hard
---   handler      : ID des Auftraggebers (Phase 3b.7) - aktuell nur "COMMAND" verwendet
---   briefing     : Liste von Text-Zeilen für die Codec-Conversation (Phase 3b.5)
---                  Phase 3b zeigt nur die erste Zeile als "Mission Briefing" statisch
+--   handler      : ID des Auftraggebers (Handler-System: Phase 8) - aktuell nur "COMMAND"
+--   briefing     : Liste von Text-Zeilen für die Codec-Conversation (Phase 3b.5).
+--                  Der Codec tippt alle Zeilen aus; das Detail-Pane rendert mehrere.
 --   description  : Kurz-Beschreibung (fallback wenn briefing leer)
 --   requirements : Liste: { { itemType="Base.X", count=N }, ... }
 --   preferredContainer : optionaler PZ-Container-Typ (z.B. "cashregister"), in den
@@ -102,7 +102,7 @@ function WHO_Quests.getByTier(tier)
 end
 
 -- Liefert alle Quests die der Operator aktuell annehmen kann
--- Aktuell: einfach alle. Später (Phase 5): nach Progression filtern.
+-- Aktuell: einfach alle. Später (Phase 6 - City): nach Progression filtern.
 function WHO_Quests.getAvailable()
     local result = {}
     for _, quest in ipairs(WHO_Quests.list) do
