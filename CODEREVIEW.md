@@ -17,7 +17,12 @@ resolved — see the ✅ annotations below.
 
 **Triage — 2026-05-25 (Bucket 2):** `container:AddItem` return now checked with a
 floor-drop fallback (`90b608d`) — see the ✅ annotation under WHO_ItemSpawner.lua.
-All other findings remain open.
+
+**Triage — 2026-05-25 (Bucket 2 quick-wins):** dead code removed — `canAcceptQuest`
++ `hoveredQuestIndex` (`5c66d63`), unused `n` (`90b608d`) — and the three WHO_Quests
+phase-comment nitpicks fixed (`e5a2642`); see ✅ annotations below. The remaining
+open items are the larger UI refactors (onMouseDown/onMouseMove split, magic layout
+numbers), deliberately deferred as Phase-5b foundation work.
 
 ## Overall verdict
 
@@ -65,6 +70,10 @@ Clean static-data module. Helpers are simple and correct. `getByTier` **is** use
   Progression filtern" — `getAvailable()` still returns everything; tier-gated
   progression is now Phase 6 (City) per the renumber, while Phase 5 Probation
   only sequences T1. *Fix:* clarify the phase reference. *Effort:* trivial.
+  > **✅ RESOLVED (`e5a2642`):** all three stale comments fixed — handler now reads
+  > "Phase 8", the briefing note describes the current typewriter / multi-line
+  > behaviour, and `getAvailable`'s filter note points at Phase 6 (City). `Phase 5b`
+  > (Supply Order shop) left intact since that phase still exists.
 
 ---
 
@@ -79,6 +88,8 @@ that is **expected** (Phase 5b will read it), not dead code.
   precondition internally (lines 53–56), so this is redundant public API.
   *Fix:* remove it, or wire it into the UI's accept-gating if that was the intent.
   *Effort:* low.
+  > **✅ RESOLVED (`5c66d63`):** removed — zero callers repo-wide; `acceptQuest`
+  > enforces the IDLE precondition itself.
 
 - **NICE-TO-HAVE — `ensureModData` has no nil-guard on `player` (lines 15–16).**
   It calls `player:getModData()` directly. Callers use `self.player or
@@ -116,6 +127,8 @@ the 0-indexed Java list). Two trivial items plus one robustness gap:
 
 - **NITPICK — unused loop variable `n` (lines 51 and 58).** Also flagged by LuaLS.
   *Fix:* `for _ = 1, count do`. *Effort:* trivial.
+  > **✅ RESOLVED (`90b608d`):** the spawn loops were rewritten to `for _ = 1, count`
+  > during the AddItem-verify refactor; no `n` remains.
 
 - **NITPICK — magic numbers `0.5, 0.5, 0.0` (line 59).** Tile-relative drop offset
   (tile center). *Fix:* name a constant or add an inline comment. *Effort:* trivial.
@@ -180,6 +193,9 @@ one dead field — i.e. maintainability, not correctness.
   anywhere. *Fix:* either use it to show a hover highlight in
   `renderMissionsListView`, or remove the field and its three writes.
   *Effort:* low.
+  > **✅ RESOLVED (`5c66d63`):** removed the field, its init/reset writes, and the
+  > now-pointless quest-list hover-detection loop in `onMouseMove` (it only set the
+  > unread field). Chose removal over wiring up a hover highlight.
 
 - **NITPICK — `self.player or getPlayer()` without a follow-up nil-guard** (553,
   981, 1055, 1096). Implies defensive intent that isn't completed; pairs with the
