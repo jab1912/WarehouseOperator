@@ -415,6 +415,7 @@ Vehicle-abhängiger Logistik und routenabhängigem Risiko.
 
 - [ ] Workshop-Beschreibung, Screenshots, Trailer-GIF
 - [ ] mod.info finalisieren (Version, Dependencies, Author)
+- [ ] WHO_Config.DEBUG.ENABLED = false setzen (Debug-Hotkeys F8/F9/F10/Numpad vor Release deaktivieren)
 - [ ] Versions-Tagging im Git
 - [ ] Upload auf Steam Workshop
 
