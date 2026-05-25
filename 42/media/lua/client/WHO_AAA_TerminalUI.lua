@@ -724,6 +724,10 @@ function WHO_TerminalUI:renderQuestDetailPane(quest)
     y = y + 22
 
     local lineH = 20
+    -- Briefing-Zeilen brauchen mehr Luft als die kompakten OBJECTIVES/REWARD-Listen
+    -- (lange Sätze wirken sonst gedrängt). +40% nur fürs Briefing; lineH bleibt für
+    -- OBJECTIVES/REWARD unverändert.
+    local briefingLineH = 28
 
     if quest.briefing then
         -- Anzahl Briefing-Zeilen dynamisch an die verfügbare Höhe binden:
@@ -732,23 +736,23 @@ function WHO_TerminalUI:renderQuestDetailPane(quest)
         local rewCount = #quest.rewards
         local reserved = 20 + (22 + objCount * lineH) + 15 + (22 + rewCount * lineH)
         local briefingSpace = (L.contentBottom - y) - reserved
-        local maxLines = math.max(1, math.floor(briefingSpace / lineH))
+        local maxLines = math.max(1, math.floor(briefingSpace / briefingLineH))
         local shown = math.min(#quest.briefing, maxLines)
 
         for i = 1, shown do
             self:drawText(quest.briefing[i], detailX, y,
                 COLOR_TEXT_BRIGHT.r, COLOR_TEXT_BRIGHT.g, COLOR_TEXT_BRIGHT.b, COLOR_TEXT_BRIGHT.a, UIFont.Small)
-            y = y + lineH
+            y = y + briefingLineH
         end
         if #quest.briefing > shown then
             self:drawText("[...]", detailX, y,
                 COLOR_TEXT_DIM.r, COLOR_TEXT_DIM.g, COLOR_TEXT_DIM.b, COLOR_TEXT_DIM.a, UIFont.Small)
-            y = y + lineH
+            y = y + briefingLineH
         end
     elseif quest.description then
         self:drawText(quest.description, detailX, y,
             COLOR_TEXT_BRIGHT.r, COLOR_TEXT_BRIGHT.g, COLOR_TEXT_BRIGHT.b, COLOR_TEXT_BRIGHT.a, UIFont.Small)
-        y = y + lineH
+        y = y + briefingLineH
     end
 
     y = y + 20
