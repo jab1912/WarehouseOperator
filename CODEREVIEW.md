@@ -98,6 +98,8 @@ that is **expected** (Phase 5b will read it), not dead code.
   player), hence not CRITICAL.
   *Fix:* `if not player then return nil end` guard, and let callers tolerate nil.
   *Effort:* low.
+  > **✅ RESOLVED (`c8c08d6`):** `ensureModData` now guards `if not player then return
+  > nil` and the accessors tolerate the nil return — added in the Phase-5b foundation pass.
 
 - **NITPICK — lazy `require` inside `acceptQuest` (lines 69–70).** `WHO_Config`
   and `WHO_ItemSpawner` are required mid-function, while `WHO_Quests` is required
