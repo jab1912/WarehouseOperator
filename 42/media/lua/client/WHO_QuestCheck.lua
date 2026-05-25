@@ -16,17 +16,38 @@ local function getExtractionContainer()
     if not cell then return nil end
 
     local square = cell:getGridSquare(pos.x, pos.y, pos.z)
-    if not square then return nil end
+    if not square then
+        -- Tile nicht geladen: harmlos. Der Spieler ist vermutlich weit weg
+        -- (z.B. an der Tankstelle); PZ streamt nur Chunks um den Spieler.
+        -- KEIN Koordinaten-Fehler.
+        print("[WHO] Quest-Check: EXTRACTION_POS tile not loaded - player likely away")
+        return nil
+    end
 
     local objects = square:getObjects()
-    if not objects then return nil end
+    if objects then
+        for i = 0, objects:size() - 1 do
+            local obj = objects:get(i)
+            if obj then
+                local container = obj:getContainer()
+                if container then
+                    return container
+                end
+            end
+        end
+    end
 
-    for i = 0, objects:size() - 1 do
-        local obj = objects:get(i)
-        if obj then
-            local container = obj:getContainer()
-            if container then
-                return container
+    -- Tile geladen, aber KEIN Container gefunden: echtes Problem (falsche Koords
+    -- oder Kiste zerstört/ersetzt). Objekte/Sprites auf dem Tile dumpen.
+    print("[WHO] Quest-Check: EXTRACTION_POS loaded but NO container - check coords/crate at "
+        .. pos.x .. "/" .. pos.y .. "/" .. pos.z)
+    if objects then
+        for i = 0, objects:size() - 1 do
+            local obj = objects:get(i)
+            if obj then
+                local spr = obj:getSprite()
+                local sprName = spr and spr:getName() or "?"
+                print("[WHO]   obj#" .. i .. " sprite=" .. tostring(sprName))
             end
         end
     end
@@ -86,7 +107,8 @@ local function onEveryOneMinute()
 
     local container = getExtractionContainer()
     if not container then
-        print("[WHO] Quest-Check: extraction container not found at EXTRACTION_POS!")
+        -- getExtractionContainer hat den konkreten Grund bereits geloggt
+        -- (Tile nicht geladen vs. geladen-aber-kein-Container).
         return
     end
 
