@@ -38,6 +38,7 @@ WHO_Quests.list = {
             "Before our logistics network can support you, we need a refueling point.",
             "Gas station, two clicks south. Clear it. Pump key's under the register. Bring it back.",
             "Once that pump runs, our trucks can resupply you daily.",
+            "First crate is waiting at your extraction point. Welcome to the network.",
             "Don't get bit. COMMAND out.",
         },
         description = "Clear the gas station south of the warehouse and recover the fuel pump key.",
@@ -46,8 +47,15 @@ WHO_Quests.list = {
             { itemType = "Base.WHO_PumpKey", count = 1 },
         },
         rewards = {
-            { itemType = "Base.Bullets9mm", count = 30 },
-            { itemType = "Base.Bandage",    count = 3 },
+            -- "First convoy delivery" care package - all ready-to-eat (NO canned
+            -- items, which would need a can opener). Weapons/ammo come in Q2. The
+            -- TinOpener is a tool for future canned deliveries. The real reward is
+            -- the supply_order_unlocked flag below (Phase 5b shop access).
+            { itemType = "Base.Bandage",   count = 3 },
+            { itemType = "Base.GranolaBar", count = 5 },
+            { itemType = "Base.BeefJerky",  count = 3 },
+            { itemType = "Base.Chocolate",  count = 2 },
+            { itemType = "Base.TinOpener",  count = 1 },
         },
         -- System-Unlock: setzt das Flag beim Extraction-Confirm; das SUPPLY-ORDER-
         -- Menü (Phase 5b) liest es aus, um sich freizuschalten.
