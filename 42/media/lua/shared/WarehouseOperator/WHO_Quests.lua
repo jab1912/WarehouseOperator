@@ -43,7 +43,13 @@ WHO_Quests.list = {
         description = "Clear the gas station south of the warehouse and recover the fuel pump key.",
         preferredContainer = "cashregister",
         requirements = {
-            { itemType = "Base.WHO_PumpKey", count = 1 },
+            -- !!! DIAGNOSTIC (TEMPORARY) — REVERT AFTER TEST !!!
+            -- Swapped Base.WHO_PumpKey -> Base.TinnedBeans (verified-working vanilla)
+            -- to isolate: does the bug live in the custom item, or in container
+            -- targeting? Beans in the register => spawner is fine, item is the issue.
+            -- Beans also missing => deeper spawner/container bug. Original line below:
+            -- { itemType = "Base.WHO_PumpKey", count = 1 },
+            { itemType = "Base.TinnedBeans", count = 1 },
         },
         rewards = {
             { itemType = "Base.Bullets9mm", count = 30 },
