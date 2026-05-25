@@ -17,6 +17,9 @@ local WHO_Quests = {}
 --                  Phase 3b zeigt nur die erste Zeile als "Mission Briefing" statisch
 --   description  : Kurz-Beschreibung (fallback wenn briefing leer)
 --   requirements : Liste: { { itemType="Base.X", count=N }, ... }
+--   preferredContainer : optionaler PZ-Container-Typ (z.B. "cashregister"), in den
+--                  die Quest-Items beim Annehmen gelegt werden. WHO_QuestState ruft
+--                  dann spawnInContainerType (Umkreis-Suche) statt spawnAt. Optional.
 --   rewards      : Liste: { { itemType="Base.X", count=N }, ... }
 --   rewardFlags  : optionale Liste von ModData-Flag-Namen, die beim Extraction-
 --                  Confirm gesetzt werden (System-Unlocks). Vom WHO_RewardDispatcher
@@ -38,6 +41,7 @@ WHO_Quests.list = {
             "Don't get bit. COMMAND out.",
         },
         description = "Clear the gas station south of the warehouse and recover the fuel pump key.",
+        preferredContainer = "cashregister",
         requirements = {
             { itemType = "Base.WHO_PumpKey", count = 1 },
         },

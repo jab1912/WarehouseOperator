@@ -75,7 +75,17 @@ function WHO_QuestState.acceptQuest(player, questId)
 
     local spawnPos = WHO_Config.QUEST_ITEM_SPAWNS[questId]
     if spawnPos then
-        WHO_ItemSpawner.spawnBatchAt(spawnPos.x, spawnPos.y, spawnPos.z, quest.requirements)
+        if quest.preferredContainer then
+            -- Items in einen bestimmten Container-Typ legen (z.B. Kasse) mit
+            -- Umkreis-Suche; spawnInContainerType fällt selbst auf spawnAt zurück.
+            for _, req in ipairs(quest.requirements) do
+                WHO_ItemSpawner.spawnInContainerType(
+                    req.itemType, spawnPos.x, spawnPos.y, spawnPos.z,
+                    quest.preferredContainer, nil, req.count)
+            end
+        else
+            WHO_ItemSpawner.spawnBatchAt(spawnPos.x, spawnPos.y, spawnPos.z, quest.requirements)
+        end
     else
         print("[WHO] No spawn position defined for quest " .. questId .. " - items not spawned")
     end
