@@ -1,23 +1,34 @@
 /*
  * Warehouse Operator - Custom Item Definitions
  *
- * Erstes scripts/-Item des Mods (Phase 5a). Custom-Items liegen im PZ-Modul
- * `Base` mit dem projektweiten `WHO_`-Prefix -> Full-Type `Base.WHO_<Name>`,
- * konsistent mit den Vanilla-Referenzen in WHO_Quests (Base.Bandage, ...).
+ * WHO_PumpKey: quest token for WHO_Q001 "Prime the Pump" - recover from the gas
+ * station, deliver to the extraction crate.
  *
- * Icons sind vorerst Vanilla-Platzhalter (Reskin spaeter, siehe PROJEKTPLAN
- * Phase 5a). PZ laedt media/scripts automatisch - keine Lua-Registrierung noetig.
+ * Templated VERBATIM from the vanilla B42 key (media/scripts/generated/items/
+ * key.txt -> item CarKey), changing only the item name and adding DisplayName
+ * (vanilla keys get their name from translation files we don't ship).
+ *
+ * WHY: the previous hand-written minimal definition used the legacy `Type = Normal`.
+ * It PARSED and registered (getScriptManager():getItem returned it), but B42's
+ * InventoryItemFactory builds the InventoryItem from the new `ItemType = base:<type>`
+ * system. Without `ItemType`, the factory produced a null item -> AddItem returned
+ * nil and AddWorldInventoryItem threw NullPointerException at createItemInternal
+ * (setAlcoholPower). Using the full vanilla template gives PZ everything it needs.
  */
 module Base
 {
-    /* Quest-Token fuer WHO_Q001 "Prime the Pump": aus der Tankstelle bergen
-       und zur Extraction-Kiste bringen. Type=Normal, oeffnet keine Tueren. */
     item WHO_PumpKey
     {
-        DisplayCategory = Misc,
-        Type            = Normal,
-        DisplayName     = Fuel Pump Key,
-        Icon            = Key2,
-        Weight          = 0.1,
+        DisplayCategory  = Security,
+        Weight           = 0.05,
+        ItemType         = base:key,
+        DisplayName      = Fuel Pump Key,
+        Icon             = CarKey,
+        MetalValue       = 7.0,
+        WorldStaticModel = CarKeys,
+        Tags             = base:carkey;base:morewhennozombies;base:fitswallet,
+        OriginX          = 0,
+        OriginY          = 0,
+        originZ          = 0,
     }
 }
