@@ -162,3 +162,16 @@ rewards → state returns to IDLE.
   "Phase 3b: Known UI Issues" in PROJEKTPLAN.md.
 - Container/world coordinates must be verified **in-game** (right-click →
   Tile Report), not read off map.projectzomboid.com (off by 1-2 tiles).
+- **B42 item definitions use `ItemType = base:X` (e.g. `base:key`), NOT B41's
+  `Type = Normal`.** An item written with the old syntax still *registers* in
+  ScriptManager (`getItem` returns it) but fails at *instantiation*: B42's
+  `InventoryItemFactory` builds the object from the `ItemType` system, so without
+  it `AddItem` returns nil and `AddWorldInventoryItem` throws `NullPointerException`
+  at `createItemInternal`/`setAlcoholPower`. **Always template a new custom item
+  from a working vanilla one** (e.g. `…/ProjectZomboid/media/scripts/generated/items/key.txt`)
+  so it inherits every required property — see `42/media/scripts/WHO_Items.txt`.
+- **Debugging a missing/broken custom item: `getScriptManager():getItem(fullType)`**
+  distinguishes the two failure classes. Returns `nil` → the script isn't being
+  loaded/parsed (structure / path / syntax). Returns non-nil but spawning still
+  fails → the item *is* registered and the problem is definition completeness /
+  B42 compliance (see the `ItemType` lesson above), **not** script loading.
