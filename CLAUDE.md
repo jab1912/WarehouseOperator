@@ -23,7 +23,8 @@ directly in `%USERPROFILE%\Zomboid\mods\WarehouseOperator`.
   watching the console/`console.txt` for `[WHO] ...` log lines (every module
   prints a load marker and logs state changes).
 - **In-game debug hotkeys** (only active when `WHO_Config.DEBUG.ENABLED`):
-  - `F8` teleport to gas station (Q1 testing) · `F9` teleport to SPAWN_POS · `F10` log current position
+  - `F7` container report (dumps containers on player tile + neighbors) · `F8` teleport to gas station (Q1 testing)
+  - `F9` teleport to SPAWN_POS · `F10` log current position
   - `Numpad 9` accept test quest WHO_Q001 · `Numpad 0` log quest state
 - **Static analysis:** two analyzers, two configs — see "Local dev setup"
   below. VSCode + EmmyLua extension reads `.emmyrc.json` (Umbrella type stubs,
