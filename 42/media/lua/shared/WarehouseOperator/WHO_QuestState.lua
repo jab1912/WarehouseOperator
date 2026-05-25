@@ -23,6 +23,7 @@ local function ensureModData(player)
             completedCount = 0,
             operatorNumber = 1,
             flags          = {},
+            pendingSpawns  = {},
         }
         print("[WHO] ModData initialized for player")
     end
@@ -69,23 +70,28 @@ function WHO_QuestState.acceptQuest(player, questId)
     state.currentStatus  = WHO_QuestState.STATUS.ACTIVE
     print("[WHO] Quest accepted: " .. quest.name .. " (" .. questId .. ")")
 
-    -- Quest-Items in der Welt spawnen
-    local WHO_Config      = require "WarehouseOperator/WHO_Config"
-    local WHO_ItemSpawner = require "WarehouseOperator/WHO_ItemSpawner"
+    -- Quest-Items werden NICHT sofort gespawnt: das Ziel-Tile ist beim Annehmen
+    -- meist nicht geladen (PZ streamt nur Chunks um den Spieler). Stattdessen pro
+    -- Requirement einen Pending-Spawn vormerken; WHO_SpawnQueue spawnt, sobald das
+    -- Tile geladen ist (z.B. wenn der Spieler hinläuft).
+    local WHO_Config = require "WarehouseOperator/WHO_Config"
 
     local spawnPos = WHO_Config.QUEST_ITEM_SPAWNS[questId]
     if spawnPos then
-        if quest.preferredContainer then
-            -- Items in einen bestimmten Container-Typ legen (z.B. Kasse) mit
-            -- Umkreis-Suche; spawnInContainerType fällt selbst auf spawnAt zurück.
-            for _, req in ipairs(quest.requirements) do
-                WHO_ItemSpawner.spawnInContainerType(
-                    req.itemType, spawnPos.x, spawnPos.y, spawnPos.z,
-                    quest.preferredContainer, nil, req.count)
-            end
-        else
-            WHO_ItemSpawner.spawnBatchAt(spawnPos.x, spawnPos.y, spawnPos.z, quest.requirements)
+        WHO_QuestState.removePendingSpawnsForQuest(player, questId)   -- idempotent bei Re-Accept
+        for _, req in ipairs(quest.requirements) do
+            WHO_QuestState.addPendingSpawn(player, {
+                questId            = questId,
+                itemType           = req.itemType,
+                count              = req.count,
+                x                  = spawnPos.x,
+                y                  = spawnPos.y,
+                z                  = spawnPos.z,
+                preferredContainer = quest.preferredContainer,   -- darf nil sein
+            })
         end
+        print("[WHO] Queued " .. #quest.requirements .. " pending spawn(s) for " .. questId
+            .. " at " .. spawnPos.x .. "/" .. spawnPos.y .. "/" .. spawnPos.z)
     else
         print("[WHO] No spawn position defined for quest " .. questId .. " - items not spawned")
     end
@@ -117,12 +123,56 @@ function WHO_QuestState.finishQuest(player)
     end
 
     local questId = state.currentQuestId
+    -- Defensiv: falls noch nie gespawnte Items in der Queue hängen (z.B. Debug-
+    -- Confirm ohne tatsächliches Spawnen), beim Abschluss aus der Queue werfen.
+    WHO_QuestState.removePendingSpawnsForQuest(player, questId)
     state.currentQuestId = nil
     state.currentStatus  = WHO_QuestState.STATUS.IDLE
     state.completedCount = state.completedCount + 1
 
     print("[WHO] Quest finished: " .. questId .. " (total completed: " .. state.completedCount .. ")")
     return true
+end
+
+-- =========================================================================
+-- PENDING SPAWNS (Lazy-Spawn-Queue, persistiert in ModData)
+-- =========================================================================
+-- Beim Quest-Accept ist das Ziel-Tile meist nicht geladen, daher werden Items
+-- nicht sofort gespawnt, sondern hier vorgemerkt. WHO_SpawnQueue (Client,
+-- EveryOneMinute) arbeitet die Liste ab, sobald die Tiles geladen sind.
+-- Eintrag: { questId, itemType, count, x, y, z, preferredContainer }
+
+local function ensurePendingList(player)
+    local state = ensureModData(player)
+    if not state then return nil end
+    state.pendingSpawns = state.pendingSpawns or {}   -- Migration: alte Saves ohne Feld
+    return state.pendingSpawns
+end
+
+function WHO_QuestState.getPendingSpawns(player)
+    return ensurePendingList(player) or {}
+end
+
+function WHO_QuestState.addPendingSpawn(player, entry)
+    local pending = ensurePendingList(player)
+    if not pending then return end
+    pending[#pending + 1] = entry
+end
+
+function WHO_QuestState.removePendingSpawn(player, index)
+    local pending = ensurePendingList(player)
+    if not pending then return end
+    table.remove(pending, index)
+end
+
+function WHO_QuestState.removePendingSpawnsForQuest(player, questId)
+    local pending = ensurePendingList(player)
+    if not pending then return end
+    for i = #pending, 1, -1 do   -- rückwärts: sicheres Entfernen
+        if pending[i].questId == questId then
+            table.remove(pending, i)
+        end
+    end
 end
 
 -- =========================================================================
