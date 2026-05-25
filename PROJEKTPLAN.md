@@ -459,6 +459,18 @@ Vehicle-abhängiger Logistik und routenabhängigem Risiko.
   verschwinden. Trotzdem: bei verschlossenen Häusern problematisch
   (siehe Phase 8 - "Verschlossene Häuser als Quest-Element").
 
+- **Spawn-Ziel ist beim Quest-Accept meist nicht geladen (Chunk-Streaming).**
+  Symptom: Log `[WHO] Spawner: no square at X/Y/Z` — das Item wird nie erzeugt.
+  Ursache: PZ lädt nur Chunks rund um den Spieler; ein Spawn-Tile ~350 Tiles
+  entfernt (z.B. die Tankstelle, während man am Warehouse-Terminal annimmt) hat
+  kein GridSquare, `getGridSquare()` liefert nil. Das ist KEIN Item-Script- oder
+  Koordinaten-Fehler — der Code erreicht `AddItem` gar nicht erst.
+  Fix: Lazy-Spawn-Queue. `acceptQuest` spawnt nicht sofort, sondern merkt pro
+  Requirement einen Pending-Spawn in ModData vor (persistiert über Save/Load).
+  `WHO_SpawnQueue` (Client, `EveryOneMinute`) spawnt jeden Eintrag erst, wenn sein
+  Tile geladen ist (Spieler läuft/teleportiert hin) und nimmt ihn dann aus der
+  Queue. Siehe `WHO_QuestState` (pendingSpawns) + `WHO_SpawnQueue`.
+
 - **TODO Phase 5+:** Spawner um "scan nearby tiles for container" erweitern
   (3x3 oder 5x5 Raster um das Ziel-Tile checken). Macht Quest-Design robuster
   bei Off-by-one-Tile-Fehlern.
