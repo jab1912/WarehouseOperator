@@ -4,6 +4,7 @@
 local WHO_Config      = require "WarehouseOperator/WHO_Config"
 local WHO_QuestState  = require "WarehouseOperator/WHO_QuestState"
 local WHO_ItemSpawner = require "WarehouseOperator/WHO_ItemSpawner"
+local WHO_Credits     = require "WHO_Credits"   -- Client-Modul: laedt alphabetisch vor WHO_Teleport
 
 if not WHO_Config.DEBUG.ENABLED then
     return
@@ -16,6 +17,7 @@ local KEY_TELEPORT      = 67  -- F9
 local KEY_LOG_POSITION  = 68  -- F10
 local KEY_ACCEPT_QUEST  = 73  -- Numpad 9
 local KEY_LOG_STATE     = 82  -- Numpad 0
+local KEY_GRANT_CREDITS = 79  -- Numpad 1
 
 local function logPosition(prefix)
     local player = getPlayer()
@@ -65,6 +67,14 @@ local function acceptTestQuest()
     local player = getPlayer()
     if not player then return end
     WHO_QuestState.acceptQuest(player, "WHO_Q001")
+end
+
+-- Debug: schreibt 50 WHO Credits gut. Erlaubt das Testen des Shops (Phase 5b),
+-- ohne auf Q2 / den Fusion-Washer (Einkommensquelle) warten zu muessen.
+local function grantCredits()
+    local player = getPlayer()
+    if not player then return end
+    WHO_Credits.add(player, 50)
 end
 
 local function logQuestState()
@@ -168,6 +178,8 @@ local function onKeyPressed(key)
         acceptTestQuest()
     elseif key == KEY_LOG_STATE then
         logQuestState()
+    elseif key == KEY_GRANT_CREDITS then
+        grantCredits()
     end
 end
 
@@ -180,3 +192,4 @@ print("[WHO]   F9         = teleport to SPAWN_POS")
 print("[WHO]   F10        = log current position")
 print("[WHO]   Numpad 9   = accept test quest WHO_Q001")
 print("[WHO]   Numpad 0   = log quest state")
+print("[WHO]   Numpad 1   = +50 WHO Credits")

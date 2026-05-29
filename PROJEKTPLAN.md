@@ -273,6 +273,27 @@ City-Expedition-Gameplay (Phase 6+) frei.
 > und "Phase 5c Laundry". Bulk-Exchange ist jetzt in **5b**, Laundry in **5d**
 > aufgegangen; die alten Tier-Reward-Pool-Notizen liegen in der Git-History.
 
+#### Ökonomie: WHO Credits (Session-Entscheidung)
+
+- **Einzige Währung des Shops sind WHO Credits.** Kein zweites Zahlungsmittel.
+- **Abstrakter Kontostand, kein physisches Item.** WHO Credits sind eine Zahl in
+  den Player-ModData (`md.WHO_Credits`, nil-sicher, Default 0), persistiert über
+  Save/Load — kein Inventar-Gegenstand, der verloren gehen oder gestohlen werden
+  kann.
+- **Einkommensquelle: gewaschene Kleidung.** Über den Fusion-Washer werden
+  Garments in WHO Credits umgewandelt. **Washer + Conversion kommen erst mit Q2
+  (5c)** — vorher gibt es keine laufende Einnahme.
+- **Bootstrap gegen das Henne-Ei-Problem.** Bei Freischaltung des Shops (Flag
+  `supply_order_unlocked`, bereits von Q1 gesetzt) erhält der Operator einen
+  einmaligen Starter-Grant an WHO Credits, um ein Q2-relevantes Item zu kaufen.
+  So ist der Shop ab 5b nutzbar, obwohl die Einkommensquelle (Washer) erst mit
+  Q2 dazukommt.
+  - **TBD (nicht raten — JAB):** konkretes Item + Höhe des Starter-Grants.
+- **Foundation Brick (gebaut):** `WHO_Credits.lua` (Client) — Ledger mit
+  `get/add/spend/set`, Init bei Spieler-Load (`OnGameStart`), Debug-Hotkey
+  „Numpad 1 = +50 Credits" (gated über `DEBUG.ENABLED`). Bewusst NICHTS weiter:
+  keine Shop-UI, kein Stock, keine Kauf-Logik, keine Wasch-Mechanik.
+
 #### Sub-Phasen (sequenziell, "eins nach dem anderen")
 
 **5a — Quest 1 "Gas Station / Refueling Point"**
@@ -284,18 +305,34 @@ City-Expedition-Gameplay (Phase 6+) frei.
 - Pump Key: Custom-Item `Base.WHO_PumpKey` (Vanilla-Key-Icon als Platzhalter) — erstes `scripts/`-Item des Mods
 - Briefing-Tone: COMMAND knapp, "prove you can walk"
 
-**5b — Shop System Foundation**
-- Neuer Terminal-State `STATE_SUPPLY_ORDER`
+**5b — Shop System Foundation** — KOMMT VOR Q2 (aktueller Build-Fokus)
+- **Reihenfolge:** Der Shop wird **vor** Q2 fertiggebaut; Q2 (5c) dockt an den
+  fertigen Shop an. Die alte To-do-Reihenfolge „Q2 zuerst" war falsch — es gilt
+  der Roadmap-Order **5b → 5c**.
+- **WHO Credits als abstrakter ModData-Kontostand** — Ledger `WHO_Credits.lua`
+  (gebaut): `get/add/spend/set`, Init bei Spieler-Load, Default 0, Save/Load-fest.
+  Siehe „Ökonomie: WHO Credits" oben.
+- **Starter-Grant beim Unlock:** liest `supply_order_unlocked` (Flag aus Q1, 5a);
+  beim Freischalten einmalig WHO Credits gutschreiben, damit der Shop sofort
+  nutzbar ist (Henne-Ei-Bootstrap).
 - Item-Katalog-Datenmodell (`WHO_ShopItems.lua`)
-- Currency-Tracking in ModData (Platzhalter bis 5d: ggf. Starter-Voucher über N Credits)
 - Order-Persistenz über Save/Load
-- Daily-Delivery-Event: Truck spawnt um 10:00 Spielzeit, parkt, Container füllt sich mit bestellten Items, Truck despawnt
+- Daily-Delivery-Event: Truck spawnt um 10:00 Spielzeit, parkt, Container füllt
+  sich mit bestellten Items, Truck despawnt
 - Codec-Notification bei Lieferung
-- UI: Katalog-Browsing, aktuelle Balance, offene Order, Delivery-Countdown
-- Liest das `supply_order_unlocked`-ModData-Flag aus Quest 1 (5a)
+- **TBD (offene Design-Entscheidungen — nicht raten, an JAB zurückgeben):**
+  - **Shop-Zugang / UI:** wie der Operator den Shop öffnet (Terminal-State
+    `STATE_SUPPLY_ORDER` vs. anderer Zugang) — Entscheidung steht noch aus
+  - **Stock-Liste / Katalog-Inhalt:** welche Items, welche Preise
+  - **Höhe des Starter-Grants** (Anzahl Credits)
+  - **Q2-relevantes Item**, das der Starter-Grant kaufen soll
 
-**5c — Quests 2-5 mit Shop-Integration + Vehicle Drop**
-- Q2: Medical (Klinik / Pharmacy) — bestehenden Platzhalter refactoren
+**5c — Quests 2-5 mit Shop-Integration + Vehicle Drop** — dockt an den fertigen Shop (5b) an
+- Q2: Medical (Klinik / Pharmacy) — bestehenden Platzhalter refactoren; nutzt den
+  in 5b gebauten Shop. **Konkretes Q2-Item: TBD (nicht raten — JAB).**
+- **Fusion-Washer kommt mit Q2:** die Mechanik „Kleidung → WHO Credits"
+  (Conversion) wird hier eingeführt und ist ab dann die laufende
+  Einkommensquelle des Shops — sie löst den einmaligen Starter-Grant aus 5b ab.
 - Q3: Tools (Farm / Werkstatt)
 - Q4: Fortification (Baumarkt / Baustelle)
 - Q5: "Establishing Trust" — finale Mission, triggert den Vehicle Drop
@@ -305,12 +342,15 @@ City-Expedition-Gameplay (Phase 6+) frei.
 - Vehicle-Typ TBD bei Implementation (Pickup vs Truck)
 - Vehicle-Verlust = WHO ersetzt nach 3 Penalty-Missionen
 
-**5d — Laundered Garments Currency**
-- Platzhalter-Currency durch echte Garment-basierte Ökonomie ersetzen
-- Waschmaschinen-Mechanik (Custom-Item oder Vanilla-Trigger)
+**5d — Garment-Ökonomie: Vertiefung & Balancing**
+- **Hinweis zur Re-Sequenzierung:** Die Basis-Mechanik (Fusion-Washer,
+  Kleidung → WHO Credits) wird bereits mit **Q2 (5c)** eingeführt. 5d vertieft
+  und balanciert sie — es gibt **keinen separaten „Platzhalter-Currency
+  ersetzen"-Schritt mehr** (WHO Credits sind ab 5b die echte, einzige Währung).
 - Wasch-Timer, Wasser-/Strom-Anforderungen
-- Conversion-Rate: Garments → Credits
-- Wash-UI im Terminal (neuer State oder in Supply Order integriert)
+- Conversion-Rate: Garments → Credits (Balancing — TBD)
+- Wash-UI (eigener State oder in Supply Order integriert) — abhängig von der
+  noch offenen Shop-Zugang-Entscheidung (5b)
 
 #### Architektur-Prinzip: Incremental Playability
 
@@ -325,6 +365,11 @@ Starter-Voucher) überbrücken Lücken, bis die nächste Sub-Phase sie auffüllt
 - Stealth/Sneak-Mechanik für die Rail-Yard-Route → Phase 6 (City Operations)
 
 #### Bekannte offene Entscheidungen
+- **Shop-Zugang / UI-Einstieg** (Terminal-State `STATE_SUPPLY_ORDER` vs. anderer
+  Zugang) — Design-Entscheidung steht noch aus (5b)
+- **Shop-Stock / Katalog-Inhalt** (welche Items, welche Preise) — TBD (5b)
+- **Starter-Grant-Betrag** (Anzahl WHO Credits beim Shop-Unlock) — TBD (5b)
+- **Q2-Item**, das der Starter-Grant kaufen soll — TBD (5c)
 - Vehicle-Typ (Pickup vs Truck) — Entscheidung bei 5c-Implementation
 - Garment-Conversion-Rate — Balancing bei 5d
 - Q5-spezifische Items — Verfeinerung bei 5c
