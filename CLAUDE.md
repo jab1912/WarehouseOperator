@@ -26,6 +26,7 @@ directly in `%USERPROFILE%\Zomboid\mods\WarehouseOperator`.
   - `F7` container report (dumps containers on player tile + neighbors) · `F8` teleport to gas station (Q1 testing)
   - `F9` teleport to SPAWN_POS · `F10` log current position
   - `Numpad 9` accept test quest WHO_Q001 · `Numpad 0` log quest state
+  - `Numpad 1` grant +50 WHO Credits · `Numpad 2` toggle `supply_order_unlocked` (test the gated WHO-Shop without a Q1-complete save)
 - **Static analysis:** two analyzers, two configs — see "Local dev setup"
   below. VSCode + EmmyLua extension reads `.emmyrc.json` (Umbrella type stubs,
   Lua 5.1, workspace root `42/media/lua`). The Claude Code `lua-lsp` plugin runs
@@ -134,14 +135,23 @@ The whole mod is one quest state machine driven by a few cooperating modules.
 - `WHO_QuestCheck` — `EveryOneMinute` loop: when a quest is ACTIVE, counts items
   in the extraction crate against requirements and flips state to COMPLETE.
 - `WHO_RewardDispatcher` — on extraction confirm, removes the required items from
-  the crate, adds the reward items, then calls `finishQuest` (back to IDLE).
+  the crate, adds the reward items, then calls `finishQuest` (back to IDLE). Also
+  exposes `deliverToCrate(itemType, count)` — the shared crate-delivery path the
+  WHO-Shop reuses so purchases land in the same extraction crate as quest rewards.
+- `WHO_Credits` — the WHO Credits ledger: an abstract per-player balance in
+  `player:getModData().WHO_Credits` (`get/add/spend/set`, nil-safe, default 0,
+  auto-persists across save/load). The mod's only shop currency; the income
+  source (Fusion-Washer) arrives with Q2.
 - `WHO_TerminalDebugMenu` — `OnFillWorldObjectContextMenu`: right-click within
   `INTERACTION_RADIUS` tiles of TERMINAL_POS shows "Boot Terminal" plus
   state-dependent debug options.
 - `WHO_AAA_TerminalUI` — `ISPanel` subclass, the DOS-green terminal. Internal
-  states `BOOTING → READY → MISSIONS_VIEW`; renders mission list / detail pane /
-  active / complete views and drives accept + confirm-extraction through the
-  same `WHO_QuestState` / `WHO_RewardDispatcher` backend as the debug menu.
+  states `BOOTING → READY → MISSIONS_VIEW → BRIEFING`, plus a flag-gated
+  `SUPPLY_ORDER` (the **WHO-Shop**). Renders mission list / detail pane / active /
+  complete views and drives accept + confirm-extraction through the same
+  `WHO_QuestState` / `WHO_RewardDispatcher` backend as the debug menu. The WHO-Shop
+  state shows the WHO Credits balance + a (currently placeholder) catalog and
+  routes purchases through `WHO_RewardDispatcher.deliverToCrate`.
 - `WHO_HelloWorld` — load marker + `OnGameStart` position logger.
 
 **End-to-end loop:** accept quest (terminal or debug menu) → required items spawn
@@ -175,3 +185,27 @@ rewards → state returns to IDLE.
   loaded/parsed (structure / path / syntax). Returns non-nil but spawning still
   fails → the item *is* registered and the problem is definition completeness /
   B42 compliance (see the `ItemType` lesson above), **not** script loading.
+
+## Reusable patterns (dev-lessons)
+
+Patterns that have paid off and should be reused for future bricks:
+
+- **Walking skeleton first.** Prove the *whole* pipe end-to-end with placeholder
+  content, verify it in-game, and only then build the real content. Used for both
+  the WHO Credits ledger and the WHO-Shop — each shipped as a working skeleton
+  (placeholder stock / debug grant) before any real catalog/economy exists.
+- **Numeric/table player state on `getModData()` auto-persists.** A value stored
+  on `player:getModData()` with a nil-safe default survives save/load with **no
+  manual `OnSave` logic** — e.g. `md.WHO_Credits` (default 0). Initialise it lazily
+  (or on `OnGameStart`) and read/write directly.
+- **Debug-flag-toggle hotkey to test gated content.** A `DEBUG.ENABLED`-gated
+  hotkey that flips a ModData flag lets you reach gated features without the
+  prerequisite save — e.g. `Numpad 2` toggles `supply_order_unlocked` so the
+  WHO-Shop is testable without a Q1-complete save. (Needs a `clearFlag` companion
+  to `setFlag` so the toggle works both ways.)
+- **Prefer wiring existing bricks over new tech.** The WHO-Shop was almost entirely
+  *plumbing* — terminal UI + state dispatch + the spawn queue + the
+  container-delivery path (`WHO_RewardDispatcher.deliverToCrate` reuses the Q1
+  crate logic) — not new systems. Reach for the existing plumbing first; a new
+  feature is usually a new state/menu entry plus a thin call into code that
+  already exists.

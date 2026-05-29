@@ -305,14 +305,14 @@ City-Expedition-Gameplay (Phase 6+) frei.
 - Pump Key: Custom-Item `Base.WHO_PumpKey` (Vanilla-Key-Icon als Platzhalter) — erstes `scripts/`-Item des Mods
 - Briefing-Tone: COMMAND knapp, "prove you can walk"
 
-**5b — Shop System Foundation** — KOMMT VOR Q2 (aktueller Build-Fokus)
+**5b — Shop System Foundation** — KOMMT VOR Q2 · ✅ FUNDAMENT GEBAUT (Ledger + WHO-Shop-Skelett, in-game verifiziert); Inhalt noch TBD
 - **Reihenfolge:** Der Shop wird **vor** Q2 fertiggebaut; Q2 (5c) dockt an den
   fertigen Shop an. Die alte To-do-Reihenfolge „Q2 zuerst" war falsch — es gilt
   der Roadmap-Order **5b → 5c**.
 - **WHO Credits als abstrakter ModData-Kontostand** — Ledger `WHO_Credits.lua`
   (gebaut): `get/add/spend/set`, Init bei Spieler-Load, Default 0, Save/Load-fest.
   Siehe „Ökonomie: WHO Credits" oben.
-- **Supply-Order-Modus (Walking Skeleton, gebaut):** neuer Terminal-State
+- **WHO-Shop / Supply-Order-Modus (Walking Skeleton, gebaut):** neuer Terminal-State
   `STATE_SUPPLY_ORDER`, erreichbar über das Hauptmenü, gegated über das
   `supply_order_unlocked`-Flag (gesperrt = ausgegraut „[CLASSIFIED]", wie
   INVENTORY/STATUS). Zeigt den WHO-Credits-Saldo + einen **PLACEHOLDER-Katalog**
