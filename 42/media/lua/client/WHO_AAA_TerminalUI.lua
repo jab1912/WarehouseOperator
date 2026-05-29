@@ -174,8 +174,8 @@ local BOOT_MESSAGES = {
 -- Text im gesperrten Zustand (ausgegraut, wie INVENTORY/STATUS).
 local MAIN_MENU_ITEMS = {
     { label = "MISSIONS",     enabled = true,  action = "open_missions" },
-    { label = "SUPPLY ORDER", enabled = true,  action = "open_supply",
-      gatedByFlag = SUPPLY_UNLOCK_FLAG, lockedLabel = "SUPPLY ORDER  [CLASSIFIED]" },
+    { label = "WHO-Shop",     enabled = true,  action = "open_supply",
+      gatedByFlag = SUPPLY_UNLOCK_FLAG, lockedLabel = "WHO-Shop  [CLASSIFIED]" },
     { label = "INVENTORY",    enabled = false, action = "open_inventory" },
     { label = "STATUS",       enabled = false, action = "open_status" },
     { label = "SHUTDOWN",     enabled = true,  action = "shutdown" },
@@ -913,7 +913,7 @@ function WHO_TerminalUI:renderSupplyOrderView()
     local L      = self:getMissionsLayout()
     local player = self.player or getPlayer()
 
-    self:drawTextCentered("// SUPPLY ORDER", L.titleY, COLOR_TEXT_BRIGHT, UIFont.Large)
+    self:drawTextCentered("// WHO-SHOP", L.titleY, COLOR_TEXT_BRIGHT, UIFont.Large)
     self:drawRect(L.M, L.dividerY, self.width - 2 * L.M, 1,
         COLOR_BORDER.a, COLOR_BORDER.r, COLOR_BORDER.g, COLOR_BORDER.b)
 
