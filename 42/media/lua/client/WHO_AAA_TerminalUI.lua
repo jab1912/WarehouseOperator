@@ -17,6 +17,7 @@ local WHO_Config           = require "WarehouseOperator/WHO_Config"
 local WHO_Quests           = require "WarehouseOperator/WHO_Quests"
 local WHO_QuestState       = require "WarehouseOperator/WHO_QuestState"
 local WHO_RewardDispatcher = require "WHO_RewardDispatcher"
+local WHO_Credits          = require "WHO_Credits"
 
 WHO_TerminalUI = ISPanel:derive("WHO_TerminalUI")
 
@@ -126,6 +127,22 @@ local STATE_BOOTING       = "booting"
 local STATE_READY         = "ready"
 local STATE_MISSIONS_VIEW = "missions_view"
 local STATE_BRIEFING      = "briefing"
+local STATE_SUPPLY_ORDER  = "supply_order"
+
+-- =========================================================================
+-- SUPPLY ORDER - PLACEHOLDER STOCK (Phase 5b Walking Skeleton)
+-- =========================================================================
+-- ⚠️ PLACEHOLDER — NICHT der finale Katalog. Nur billige Vanilla-Items zu runden
+-- Preisen, um die Kauf-Pipe (spend -> Lieferung in die Kiste) end-to-end zu
+-- beweisen. Echte Items, Preise, Mengen und Balancing sind TBD (JAB entscheidet).
+local SUPPLY_CATALOG = {
+    { itemType = "Base.Bandage",    price = 50  },
+    { itemType = "Base.TinnedBeans", price = 100 },
+    { itemType = "Base.Bullets9mm", price = 150 },
+}
+
+-- ModData-Flag, das den Supply-Order-Modus freischaltet (gesetzt von Q1).
+local SUPPLY_UNLOCK_FLAG = "supply_order_unlocked"
 
 -- =========================================================================
 -- BOOT-SEQUENZ-KONFIGURATION
@@ -152,12 +169,28 @@ local BOOT_MESSAGES = {
 -- MAIN MENU CONFIGURATION
 -- =========================================================================
 
+-- gatedByFlag: Eintrag ist nur anklickbar, wenn das ModData-Flag gesetzt ist
+-- (zur Laufzeit ausgewertet, siehe isMenuItemEnabled). lockedLabel: alternativer
+-- Text im gesperrten Zustand (ausgegraut, wie INVENTORY/STATUS).
 local MAIN_MENU_ITEMS = {
-    { label = "MISSIONS",  enabled = true,  action = "open_missions" },
-    { label = "INVENTORY", enabled = false, action = "open_inventory" },
-    { label = "STATUS",    enabled = false, action = "open_status" },
-    { label = "SHUTDOWN",  enabled = true,  action = "shutdown" },
+    { label = "MISSIONS",     enabled = true,  action = "open_missions" },
+    { label = "SUPPLY ORDER", enabled = true,  action = "open_supply",
+      gatedByFlag = SUPPLY_UNLOCK_FLAG, lockedLabel = "SUPPLY ORDER  [CLASSIFIED]" },
+    { label = "INVENTORY",    enabled = false, action = "open_inventory" },
+    { label = "STATUS",       enabled = false, action = "open_status" },
+    { label = "SHUTDOWN",     enabled = true,  action = "shutdown" },
 }
+
+-- Ob ein Menüeintrag aktuell anklickbar ist: statisches enabled UND (falls gated)
+-- das benötigte ModData-Flag. Gating wird hier zur Render-/Hit-Zeit ausgewertet,
+-- nicht zur Ladezeit, weil das Flag per-Player und zur Laufzeit gesetzt wird.
+function WHO_TerminalUI:isMenuItemEnabled(item, player)
+    if not item.enabled then return false end
+    if item.gatedByFlag then
+        return WHO_QuestState.hasFlag(player, item.gatedByFlag)
+    end
+    return true
+end
 
 -- =========================================================================
 -- LIFECYCLE
@@ -176,6 +209,11 @@ function WHO_TerminalUI:create()
     self.hoveredAction      = false
     self.hoveredClose       = false
     self.selectedQuestIndex = 1
+
+    -- Supply-Order-Shop-State (Phase 5b)
+    self.selectedShopIndex  = 1
+    self.shopFeedback       = nil
+    self.shopFeedbackColor  = nil
 
     -- Briefing-Codec-State (Phase 3b.5)
     self.briefingQuest          = nil
@@ -377,6 +415,27 @@ function WHO_TerminalUI:getBackButtonRect()
     return L.backX, L.backY, btnWidth, btnHeight
 end
 
+-- Supply-Order-Layout (Phase 5b). Wiederverwendet die Missions-Layout-Anker
+-- (Header/Divider/BACK) und legt darunter Balance-Zeile, Stock-Label und Liste.
+-- Liefert die drei Y-Positionen; von Render UND Hit-Test geteilt.
+function WHO_TerminalUI:getSupplyLayout()
+    local L  = self:getMissionsLayout()
+    local tm = getTextManager()
+    local balanceY    = L.backY + L.backH + 18
+    local stockLabelY = balanceY + tm:getFontHeight(UIFont.Medium) + 18
+    local listY       = stockLabelY + L.thSm + 14
+    return balanceY, stockLabelY, listY
+end
+
+function WHO_TerminalUI:getSupplyItemRect(index)
+    local L = self:getMissionsLayout()
+    local _, _, listY = self:getSupplyLayout()
+    local itemHeight = 34
+    local itemWidth  = clampNum(math.floor(self.width * 0.5), 360, 700)
+    local itemY      = listY + (index - 1) * itemHeight
+    return L.M, itemY, itemWidth, itemHeight
+end
+
 -- Briefing-Codec-Layout (Phase 3b.5). Proportional verankert wie die Missions-View:
 -- Header oben, Portrait+Handler links, Text-Bereich rechts, Footer unten verankert.
 function WHO_TerminalUI:getBriefingLayout()
@@ -462,6 +521,8 @@ function WHO_TerminalUI:render()
         self:renderMissionsView()
     elseif self.state == STATE_BRIEFING then
         self:renderBriefingView()
+    elseif self.state == STATE_SUPPLY_ORDER then
+        self:renderSupplyOrderView()
     end
 end
 
@@ -596,11 +657,14 @@ function WHO_TerminalUI:renderReadyState()
     self:renderLogo(logoSize, logoSize, logoTop)
     self:drawTextCentered("// LOGISTICS UPLINK ESTABLISHED", subY, COLOR_TEXT_DIM, UIFont.Small)
 
+    local player = self.player or getPlayer()
+
     for i, item in ipairs(MAIN_MENU_ITEMS) do
         local itemX, itemY, itemWidth, itemHeight = self:getMenuItemRect(i)
+        local enabled = self:isMenuItemEnabled(item, player)
 
         local color
-        if not item.enabled then
+        if not enabled then
             color = COLOR_TEXT_GRAY
         elseif self.hoveredMenuIndex == i then
             color = COLOR_TEXT_HOVER
@@ -608,16 +672,22 @@ function WHO_TerminalUI:renderReadyState()
             color = COLOR_TEXT_BRIGHT
         end
 
+        -- Gesperrter gated-Eintrag zeigt seinen lockedLabel (z.B. "[CLASSIFIED]").
+        local label = item.label
+        if item.gatedByFlag and not enabled and item.lockedLabel then
+            label = item.lockedLabel
+        end
+
         local arrowX = itemX + 50
         local labelX = itemX + 100
         local textY  = itemY + 5
 
-        if self.hoveredMenuIndex == i and item.enabled then
+        if self.hoveredMenuIndex == i and enabled then
             self:drawText(">", arrowX, textY,
                 color.r, color.g, color.b, color.a, UIFont.Medium)
         end
 
-        self:drawText(item.label, labelX, textY,
+        self:drawText(label, labelX, textY,
             color.r, color.g, color.b, color.a, UIFont.Medium)
     end
 
@@ -836,6 +906,90 @@ function WHO_TerminalUI:renderClose()
 end
 
 -- =========================================================================
+-- RENDERING - SUPPLY ORDER VIEW (Shop, Phase 5b Walking Skeleton)
+-- =========================================================================
+
+function WHO_TerminalUI:renderSupplyOrderView()
+    local L      = self:getMissionsLayout()
+    local player = self.player or getPlayer()
+
+    self:drawTextCentered("// SUPPLY ORDER", L.titleY, COLOR_TEXT_BRIGHT, UIFont.Large)
+    self:drawRect(L.M, L.dividerY, self.width - 2 * L.M, 1,
+        COLOR_BORDER.a, COLOR_BORDER.r, COLOR_BORDER.g, COLOR_BORDER.b)
+
+    self:renderBackButton()
+
+    local balanceY, stockLabelY, listY = self:getSupplyLayout()
+
+    -- Aktueller Kontostand (abstrakter Saldo aus WHO_Credits.lua).
+    self:drawTextColored("BALANCE: " .. WHO_Credits.get(player) .. " WHO CREDITS",
+        L.M, balanceY, COLOR_TEXT_AMBER, UIFont.Medium)
+
+    -- Stock-Label mit deutlichem Platzhalter-Hinweis.
+    self:drawTextColored("AVAILABLE STOCK:   [ PLACEHOLDER STOCK - NOT FINAL ]",
+        L.M, stockLabelY, COLOR_TEXT_DIM, UIFont.Small)
+
+    -- Katalog-Zeilen: Item-Name links, Preis rechtsbündig, selektierbar.
+    for i, entry in ipairs(SUPPLY_CATALOG) do
+        local ix, iy, iw = self:getSupplyItemRect(i)
+
+        local color, prefix
+        if self.selectedShopIndex == i then
+            color  = COLOR_TEXT_HOVER
+            prefix = "> "
+        else
+            color  = COLOR_TEXT_BRIGHT
+            prefix = "  "
+        end
+
+        self:drawTextColored(prefix .. itemDisplayName(entry.itemType), ix, iy + 5, color, UIFont.Medium)
+
+        local priceLabel = entry.price .. " CR"
+        local priceW     = getTextManager():MeasureStringX(UIFont.Medium, priceLabel)
+        self:drawTextColored(priceLabel, ix + iw - priceW, iy + 5, color, UIFont.Medium)
+    end
+
+    -- Feedback-Zeile (Lieferung bestätigt / zu wenig Credits), unter der Liste.
+    if self.shopFeedback then
+        local feedbackY = listY + (#SUPPLY_CATALOG * 34) + 18
+        self:drawTextColored(self.shopFeedback, L.M, feedbackY,
+            self.shopFeedbackColor or COLOR_TEXT_AMBER, UIFont.Small)
+    end
+
+    self:renderActionButton("PURCHASE", true)
+    self:renderClose()
+end
+
+-- Kauf-Versuch des aktuell selektierten Katalog-Eintrags. spend() prüft die
+-- Deckung; bei Erfolg liefert WHO_RewardDispatcher das Item in die Extraction-
+-- Kiste (derselbe Pfad wie Q1-Rewards). Bei zu wenig Credits: kein Abzug.
+function WHO_TerminalUI:attemptPurchase()
+    local player = self.player or getPlayer()
+    local entry  = SUPPLY_CATALOG[self.selectedShopIndex]
+    if not entry then return end
+
+    if WHO_Credits.spend(player, entry.price) then
+        local delivered = WHO_RewardDispatcher.deliverToCrate(entry.itemType, 1)
+        if delivered then
+            self.shopFeedback      = "ORDER DELIVERED to extraction crate: " .. itemDisplayName(entry.itemType)
+            self.shopFeedbackColor = COLOR_TEXT_BRIGHT
+            print("[WHO] Supply Order: purchased " .. entry.itemType .. " for " .. entry.price .. " credits")
+        else
+            -- Lieferung fehlgeschlagen (z.B. Kisten-Tile nicht geladen): Credits
+            -- zurückbuchen, damit der Saldo ehrlich bleibt.
+            WHO_Credits.add(player, entry.price)
+            self.shopFeedback      = "DELIVERY FAILED (crate not reachable). Credits refunded."
+            self.shopFeedbackColor = COLOR_TEXT_AMBER
+            print("[WHO] Supply Order: delivery failed, refunded " .. entry.price .. " credits")
+        end
+    else
+        self.shopFeedback      = "INSUFFICIENT CREDITS."
+        self.shopFeedbackColor = COLOR_TEXT_AMBER
+        -- spend() hat bereits abgelehnt und geloggt; kein Abzug erfolgt.
+    end
+end
+
+-- =========================================================================
 -- RENDERING - BRIEFING VIEW (Codec, Phase 3b.5)
 -- =========================================================================
 
@@ -971,14 +1125,25 @@ function WHO_TerminalUI:onMouseMove(dx, dy)
     self.hoveredBriefingDecline = false
 
     if self.state == STATE_READY then
+        local player = self.player or getPlayer()
         for i, item in ipairs(MAIN_MENU_ITEMS) do
-            if item.enabled then
+            if self:isMenuItemEnabled(item, player) then
                 local itemX, itemY, itemWidth, itemHeight = self:getMenuItemRect(i)
                 if self:isPointInRect(mouseX, mouseY, itemX, itemY, itemWidth, itemHeight) then
                     self.hoveredMenuIndex = i
                     break
                 end
             end
+        end
+    elseif self.state == STATE_SUPPLY_ORDER then
+        local bx, by, bw, bh = self:getBackButtonRect()
+        if self:isPointInRect(mouseX, mouseY, bx, by, bw, bh) then
+            self.hoveredBack = true
+        end
+
+        local ax, ay, aw, ah = self:getActionButtonRect()
+        if self:isPointInRect(mouseX, mouseY, ax, ay, aw, ah) then
+            self.hoveredAction = true
         end
     elseif self.state == STATE_MISSIONS_VIEW then
         local bx, by, bw, bh = self:getBackButtonRect()
@@ -1011,9 +1176,10 @@ function WHO_TerminalUI:onMouseMove(dx, dy)
         end
     end
 
-    -- CLOSE ist nur in READY und MISSIONS klickbar (nicht beim Booten, nicht im
-    -- Briefing — dort fängt die Codec-View Klicks selbst ab / nutzt ABORT).
-    if self.state == STATE_READY or self.state == STATE_MISSIONS_VIEW then
+    -- CLOSE ist in READY, MISSIONS und SUPPLY ORDER klickbar (nicht beim Booten,
+    -- nicht im Briefing — dort fängt die Codec-View Klicks selbst ab / nutzt ABORT).
+    if self.state == STATE_READY or self.state == STATE_MISSIONS_VIEW
+        or self.state == STATE_SUPPLY_ORDER then
         local cx, cy, cw, ch = self:getCloseRect()
         if self:isPointInRect(mouseX, mouseY, cx, cy, cw, ch) then
             self.hoveredClose = true
@@ -1022,9 +1188,10 @@ function WHO_TerminalUI:onMouseMove(dx, dy)
 end
 
 function WHO_TerminalUI:onMouseDown(x, y)
-    -- CLOSE nur in READY + MISSIONS prüfen. Im Briefing gibt es kein CLOSE:
-    -- Klicks treiben den Codec voran, Ausstieg läuft über ABORT/DECLINE.
-    if self.state == STATE_READY or self.state == STATE_MISSIONS_VIEW then
+    -- CLOSE in READY + MISSIONS + SUPPLY ORDER prüfen. Im Briefing gibt es kein
+    -- CLOSE: Klicks treiben den Codec voran, Ausstieg läuft über ABORT/DECLINE.
+    if self.state == STATE_READY or self.state == STATE_MISSIONS_VIEW
+        or self.state == STATE_SUPPLY_ORDER then
         local cx, cy, cw, ch = self:getCloseRect()
         if self:isPointInRect(x, y, cx, cy, cw, ch) then
             self:close()
@@ -1033,14 +1200,36 @@ function WHO_TerminalUI:onMouseDown(x, y)
     end
 
     if self.state == STATE_READY then
+        local player = self.player or getPlayer()
         for i, item in ipairs(MAIN_MENU_ITEMS) do
-            if item.enabled then
+            if self:isMenuItemEnabled(item, player) then
                 local itemX, itemY, itemWidth, itemHeight = self:getMenuItemRect(i)
                 if self:isPointInRect(x, y, itemX, itemY, itemWidth, itemHeight) then
                     self:handleMenuAction(item.action)
                     return true
                 end
             end
+        end
+    elseif self.state == STATE_SUPPLY_ORDER then
+        local bx, by, bw, bh = self:getBackButtonRect()
+        if self:isPointInRect(x, y, bx, by, bw, bh) then
+            self.state        = STATE_READY
+            self.shopFeedback = nil
+            return true
+        end
+
+        for i, _ in ipairs(SUPPLY_CATALOG) do
+            local ix, iy, iw, ih = self:getSupplyItemRect(i)
+            if self:isPointInRect(x, y, ix, iy, iw, ih) then
+                self.selectedShopIndex = i
+                return true
+            end
+        end
+
+        local ax, ay, aw, ah = self:getActionButtonRect()
+        if self:isPointInRect(x, y, ax, ay, aw, ah) then
+            self:attemptPurchase()
+            return true
         end
     elseif self.state == STATE_MISSIONS_VIEW then
         local bx, by, bw, bh = self:getBackButtonRect()
@@ -1118,6 +1307,10 @@ function WHO_TerminalUI:handleMenuAction(action)
     if action == "open_missions" then
         self.state = STATE_MISSIONS_VIEW
         self.selectedQuestIndex = 1
+    elseif action == "open_supply" then
+        self.state = STATE_SUPPLY_ORDER
+        self.selectedShopIndex = 1
+        self.shopFeedback = nil
     elseif action == "shutdown" then
         self:close()
     end

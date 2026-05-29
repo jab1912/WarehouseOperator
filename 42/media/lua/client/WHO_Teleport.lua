@@ -18,6 +18,7 @@ local KEY_LOG_POSITION  = 68  -- F10
 local KEY_ACCEPT_QUEST  = 73  -- Numpad 9
 local KEY_LOG_STATE     = 82  -- Numpad 0
 local KEY_GRANT_CREDITS = 79  -- Numpad 1
+local KEY_TOGGLE_SHOP   = 80  -- Numpad 2
 
 local function logPosition(prefix)
     local player = getPlayer()
@@ -75,6 +76,19 @@ local function grantCredits()
     local player = getPlayer()
     if not player then return end
     WHO_Credits.add(player, 50)
+end
+
+-- Debug: schaltet das supply_order_unlocked-Flag um. Erlaubt das Testen des
+-- gegateten Supply-Order-Modus, ohne einen Q1-Complete-Save zu brauchen.
+local function toggleSupplyUnlock()
+    local player = getPlayer()
+    if not player then return end
+    local FLAG = "supply_order_unlocked"
+    if WHO_QuestState.hasFlag(player, FLAG) then
+        WHO_QuestState.clearFlag(player, FLAG)
+    else
+        WHO_QuestState.setFlag(player, FLAG)
+    end
 end
 
 local function logQuestState()
@@ -180,6 +194,8 @@ local function onKeyPressed(key)
         logQuestState()
     elseif key == KEY_GRANT_CREDITS then
         grantCredits()
+    elseif key == KEY_TOGGLE_SHOP then
+        toggleSupplyUnlock()
     end
 end
 
@@ -193,3 +209,4 @@ print("[WHO]   F10        = log current position")
 print("[WHO]   Numpad 9   = accept test quest WHO_Q001")
 print("[WHO]   Numpad 0   = log quest state")
 print("[WHO]   Numpad 1   = +50 WHO Credits")
+print("[WHO]   Numpad 2   = toggle supply_order_unlocked")

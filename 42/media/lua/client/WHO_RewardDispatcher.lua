@@ -72,8 +72,12 @@ local function addRewardsToContainer(container, rewards)
     local added = 0
     for _, reward in ipairs(rewards) do
         for n = 1, reward.count do
-            container:AddItem(reward.itemType)
-            added = added + 1
+            -- AddItem nur zählen, wenn es wirklich ein Item liefert. B42 gibt nil
+            -- zurück, wenn der Typ nicht registriert ist (siehe CLAUDE.md); sonst
+            -- meldete deliverToCrate fälschlich Erfolg und der Shop-Refund bliebe aus.
+            if container:AddItem(reward.itemType) then
+                added = added + 1
+            end
         end
     end
 
@@ -84,6 +88,26 @@ end
 -- PUBLIC: Reward-Dispatch
 -- Wird vom Context-Menu aufgerufen wenn Spieler "Confirm Extraction" klickt.
 -- =========================================================================
+
+-- =========================================================================
+-- PUBLIC: Generische Lieferung in die Extraction-Kiste
+-- Nutzt EXAKT denselben Pfad wie der Quest-Reward-Dispatch (getExtractionContainer
+-- + addRewardsToContainer). Wird vom Supply-Order-Shop (Phase 5b) aufgerufen, damit
+-- gekaufte Items über denselben Kisten-Mechanismus geliefert werden wie Q1-Rewards.
+-- Gibt true zurück, wenn mindestens ein Item gelegt wurde, sonst false.
+-- =========================================================================
+
+function WHO_RewardDispatcher.deliverToCrate(itemType, count)
+    local container = getExtractionContainer()
+    if not container then
+        print("[WHO] Delivery: extraction container not found!")
+        return false
+    end
+
+    local added = addRewardsToContainer(container, { { itemType = itemType, count = count } })
+    print("[WHO] Delivery: added " .. added .. "x " .. itemType .. " to extraction crate")
+    return added > 0
+end
 
 function WHO_RewardDispatcher.dispatch(player)
     if WHO_QuestState.getCurrentStatus(player) ~= WHO_QuestState.STATUS.COMPLETE then

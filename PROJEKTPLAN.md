@@ -312,6 +312,15 @@ City-Expedition-Gameplay (Phase 6+) frei.
 - **WHO Credits als abstrakter ModData-Kontostand** — Ledger `WHO_Credits.lua`
   (gebaut): `get/add/spend/set`, Init bei Spieler-Load, Default 0, Save/Load-fest.
   Siehe „Ökonomie: WHO Credits" oben.
+- **Supply-Order-Modus (Walking Skeleton, gebaut):** neuer Terminal-State
+  `STATE_SUPPLY_ORDER`, erreichbar über das Hauptmenü, gegated über das
+  `supply_order_unlocked`-Flag (gesperrt = ausgegraut „[CLASSIFIED]", wie
+  INVENTORY/STATUS). Zeigt den WHO-Credits-Saldo + einen **PLACEHOLDER-Katalog**
+  (2-3 billige Vanilla-Items zu runden Preisen). Kauf: `WHO_Credits.spend` →
+  Lieferung in die Extraction-Kiste über den **Q1-Pfad** (`WHO_RewardDispatcher`,
+  derselbe Mechanismus wie Quest-Rewards); zu wenig Credits = klares Feedback,
+  kein Abzug. Debug-Hotkey „Numpad 2" schaltet das Unlock-Flag um. **Echter
+  Katalog, Preise, Starter-Grant-Betrag und Q2-Item bleiben TBD.**
 - **Starter-Grant beim Unlock:** liest `supply_order_unlocked` (Flag aus Q1, 5a);
   beim Freischalten einmalig WHO Credits gutschreiben, damit der Shop sofort
   nutzbar ist (Henne-Ei-Bootstrap).

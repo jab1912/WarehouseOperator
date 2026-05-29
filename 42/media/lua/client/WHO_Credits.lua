@@ -32,20 +32,30 @@ function WHO_Credits.get(player)
 end
 
 -- Schreibt Credits gut, gibt den neuen Kontostand zurueck.
+-- Guard: nur positive Zahlen; sonst Kontostand unveraendert zurueck (kein stiller
+-- Saldo-Schaden durch negative/ungueltige Betraege, z.B. bei einem Refund-Bug).
 function WHO_Credits.add(player, amount)
     local md = ensureBalance(player)
     if not md then return 0 end
-    amount = amount or 0
+    if type(amount) ~= "number" or amount <= 0 then
+        print("[WHO] Credits: add() rejected invalid amount (" .. tostring(amount) .. ")")
+        return md.WHO_Credits
+    end
     md.WHO_Credits = md.WHO_Credits + amount
     print("[WHO] Credits +" .. amount .. " -> balance " .. md.WHO_Credits)
     return md.WHO_Credits
 end
 
 -- Bucht Credits ab, WENN gedeckt. true = gebucht, false = zu wenig Guthaben.
+-- Guard: nur positive Zahlen; ungueltige Betraege werden abgelehnt (return false),
+-- damit ein Kauf mit kaputtem Preis nicht versehentlich Guthaben gutschreibt.
 function WHO_Credits.spend(player, amount)
     local md = ensureBalance(player)
     if not md then return false end
-    amount = amount or 0
+    if type(amount) ~= "number" or amount <= 0 then
+        print("[WHO] Credits: spend() rejected invalid amount (" .. tostring(amount) .. ")")
+        return false
+    end
     if md.WHO_Credits < amount then
         print("[WHO] Credits: insufficient funds (have " .. md.WHO_Credits
             .. ", need " .. amount .. ")")

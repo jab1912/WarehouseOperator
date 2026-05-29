@@ -190,4 +190,14 @@ function WHO_QuestState.hasFlag(player, flag)
     return state.flags ~= nil and state.flags[flag] == true
 end
 
+-- Entfernt ein Flag wieder. Gegenstück zu setFlag; aktuell vom Debug-Hotkey
+-- genutzt, um Shop-Gating ohne Q1-Complete-Save zu testen (siehe WHO_Teleport).
+function WHO_QuestState.clearFlag(player, flag)
+    local state = ensureModData(player)
+    if not state then return end
+    state.flags = state.flags or {}
+    state.flags[flag] = nil
+    print("[WHO] Flag cleared: " .. flag)
+end
+
 return WHO_QuestState
